@@ -1,24 +1,25 @@
 # Source Sextant: Next Steps
 
-**Last session**: 2026-02-26
-**State**: 8 commits, 63 passing tests, 4 macro tiers working, conversation schema drafted
+**Last session**: 2026-02-26 (afternoon)
+**State**: 9 commits, 94 passing tests, 5 macro tiers working + conversations tested
 
 ## What Exists
 
 ```
 source-sextant/
   sql/
-    source.sql          ✅ 4 macros, 13 tests passing
-    code.sql            ✅ 4 macros, 13 tests passing
-    docs.sql            ✅ 4 macros, 16 tests passing (find_code_examples fixed)
-    repo.sql            ✅ 5 macros, 18 tests passing
-    conversations.sql   ⚠️  Written by background agent, NOT YET TESTED
+    source.sql          ✅ 4 macros, 13 tests
+    code.sql            ✅ 4 macros, 13 tests
+    docs.sql            ✅ 4 macros, 16 tests
+    repo.sql            ✅ 5 macros, 18 tests
+    conversations.sql   ✅ 13 macros, 31 tests (converted from views)
   tests/
-    conftest.py         ✅ Fixtures for all tiers + all-together
+    conftest.py         ✅ Fixtures for all tiers + synthetic JSONL data
     test_source.py      ✅ 13 tests
     test_code.py        ✅ 13 tests
     test_docs.py        ✅ 16 tests
     test_repo.py        ✅ 18 tests (includes cross-tier composition)
+    test_conversations.py ✅ 31 tests (12 test classes)
   docs/
     index.md                    Docs landing page
     getting-started.md          Installation and usage guide
@@ -40,47 +41,42 @@ All 5 extensions load from DuckDB community on v1.4.4:
 
 ## Completed
 
-### Project rename (2026-02-26)
-Renamed from `duck_nest` to `source-sextant`. Rationale: this is a tool
-that *uses* DuckDB extensions, not a DuckDB extension itself. The `duck_*`
-prefix belongs to the extension ecosystem; source-sextant belongs alongside
-`blq` and `aidr` as an independent tool. "Sextant" = navigation instrument;
-"source" = source code, source of truth.
+### Conversation macros + tests (2026-02-26 afternoon)
 
-### Documentation infrastructure (2026-02-26)
-- ReadTheDocs setup with mkdocs-material
-- Macro reference pages for all 5 tiers
-- Getting started guide
-- pyproject.toml with dependency groups (test, docs)
+Converted `sql/conversations.sql` from 13 `CREATE VIEW` statements to
+`CREATE MACRO ... AS TABLE`. All macros now tested with synthetic JSONL fixture.
 
-## Immediate Next: Conversation Tier Tests
+**Macros (by tier):**
+- Tier 1 (raw_conversations): `sessions()`, `messages()`, `content_blocks()`, `tool_results()`
+- Tier 2 (call tier 1): `token_usage()`, `tool_calls()`, `tool_frequency()`, `bash_commands()`
+- Tier 3 (call tier 1+2): `session_summary()`, `model_usage()`
+- Search: `search_messages(term)`, `search_tool_inputs(term)`
+- Loader: `load_conversations(path)`
 
-The conversation schema (`sql/conversations.sql`) was written by a background
-agent and has NOT been validated. It defines:
+**DuckDB macro quirks discovered** (documented in auto-memory):
+1. Table references in macros resolve at creation time (not call time), even
+   with `query_table()`. Only macro-to-macro calls are deferred.
+2. The `->>` operator breaks inside `UNION ALL` in macro context. Workaround:
+   use `json_extract_string()` instead.
+3. LATERAL UNNEST evaluates before WHERE in macros with mixed-type JSON
+   columns. Workaround: use CTE to filter before the LATERAL join.
 
-- `load_conversations(path)` — table-returning macro for JSONL ingestion
-- Views: `sessions`, `messages`, `content_blocks`, `tool_calls`,
-  `tool_results`, `token_usage`, `tool_frequency`, `bash_commands`,
-  `session_summary`, `model_usage`
-- Search macros: `search_messages(term)`, `search_tool_inputs(term)`
+**Tool name inventory:** 104 unique tool names found across ~52k tool calls
+in local conversation logs. 24 built-in Claude Code tools + 80 MCP tools
+across 9 servers (aidr, blq, duckdb_mcp_test, lq, mess, Notion, context7,
+playwright, venv_blq).
 
-**Action**: Write `tests/test_conversations.py`. Key things to verify:
-1. `load_conversations()` actually loads JSONL from `~/.claude/projects/`
-2. Views reference correct columns (the agent may have guessed some names)
-3. The JSON unnesting for `tool_calls` works (this was the trickiest part
-   in our manual exploration — struct field access from LATERAL UNNEST)
-4. `bash_commands` categorization logic matches what we validated manually
-5. `search_messages` actually finds content
+### Project rename (2026-02-26 morning)
+Renamed from `duck_nest` to `source-sextant`.
 
-**Likely issues**: The background agent didn't have access to the manual
-exploration we did. It may have gotten JSON field paths wrong. Be prepared
-to fix `conversations.sql` alongside writing tests.
+### Documentation infrastructure (2026-02-26 morning)
+ReadTheDocs + mkdocs-material, macro reference pages, getting started guide.
 
-## Phase 2: Init Script + MCP Server
+## Immediate Next: Init Script + MCP Server
 
-Once all macros are tested, wire them up as an actual MCP server.
+All macros are tested. Time to wire them up as an actual MCP server.
 
-### 2a. Write `init-source-sextant.sql`
+### 1. Write `init-source-sextant.sql`
 
 The entry point that loads everything and starts the server:
 
@@ -113,28 +109,13 @@ SELECT mcp_server_start('stdio', '{
 files? If not, we may need a build step that concatenates everything
 into a single init script, or just inline the macros.
 
-### 2b. Define MCP tool publications
+### 2. Define MCP tool publications
 
-Each macro needs a `mcp_publish_tool()` call. Example:
+Each macro needs a `mcp_publish_tool()` call. The tool count question from
+the spec is real: 104 tool names already exist in conversation logs. Consider
+being selective about which macros become tools vs. stay as power-user SQL.
 
-```sql
-SELECT mcp_publish_tool(
-    'find_definitions',
-    'Find function, class, or variable definitions by name pattern',
-    'SELECT * FROM find_definitions($path, $pattern)',
-    '{"path": {"type": "string", "description": "File or glob pattern"},
-     "pattern": {"type": "string", "description": "Name pattern (SQL LIKE)"}}',
-    '["path"]',
-    'markdown'
-);
-```
-
-Need one per tool (~17 tools across 5 tiers). The tool count question
-from the spec is real: MCP discovery gets noisy. Consider grouping
-or being selective about which macros become tools vs. stay as
-power-user SQL.
-
-### 2c. Claude Code configuration
+### 3. Claude Code configuration
 
 Add to `~/.claude/settings.json`:
 ```json
@@ -148,32 +129,31 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-Write `config/claude-code.example.json` with the template.
+### 4. Conversation data loading
 
-### 2d. Test the MCP server end-to-end
-
-Use `duckdb_mcp`'s memory transport for automated testing, or manually
-test via Claude Code with the server configured.
+The `conversation_macros` fixture showed the load pattern works:
+`load_conversations()` → `CREATE TABLE raw_conversations`. For the MCP server,
+need to decide: auto-load from `~/.claude/projects/` on startup, or expose
+`load_conversations()` as a tool for on-demand loading?
 
 ## Phase 3: Polish and Iterate
 
 ### Trim settings.json bash whitelist
-Once source_sextant is running as MCP, start removing bash entries that are
-now covered by MCP tools. The conversation analysis showed which ones:
+Once source_sextant is running as MCP, start removing bash entries covered
+by MCP tools. The conversation analysis showed which ones:
 - `cat`, `head`, `tail` → `read_source`
 - `grep`, `find` → `find_definitions` / Grep tool
 - `git log`, `git diff`, `git show`, `git branch` → repo macros
 - `wc`, `sort`, `awk`, `sed` → DuckDB SQL via query tool
 
 ### Blog post: Analyzing Claude Code Conversations with DuckDB
-The conversation schema design doc has a blog outline. The data is
-compelling: 849 MB of JSONL, 267K records, tool usage patterns that
-directly inform tooling decisions. Good candidate for a post.
+The conversation schema design doc has a blog outline. The data is compelling:
+849 MB of JSONL, 267K records, tool usage patterns that directly inform
+tooling decisions.
 
 ### Per-project configuration
 Currently source_sextant is global. Consider how project-specific tools
-would work — e.g., project-specific sitting_duck queries, custom
-doc_outline filters, conversation scoping.
+would work.
 
 ## Upstream Issues Filed
 
@@ -191,11 +171,4 @@ doc_outline filters, conversation scoping.
 
 Out of scope for source_sextant (which is read-only), but the conversation
 analysis showed 2,810 git write operations (16.5% of all bash). A
-separate server with safety guardrails:
-
-- `safe_commit(files, message)` — explicit file list, runs hooks
-- `safe_push(branch)` — refuses force-push, refuses main/master
-- `safe_add(files)` — stage specific files only
-
-This is a different security profile from source_sextant and should remain
-a separate server.
+separate server with safety guardrails.
