@@ -7,9 +7,9 @@
 
 Duck Nest is a DuckDB-powered MCP server that unifies development intelligence tools
 into a single queryable surface. It brings together existing DuckDB extensions —
-`sitting_duck` (code semantics), `duck_tails` (git state), `read_lines` (file retrieval) —
-and adds conversation analysis capabilities, all exposed as purpose-built MCP tools via
-`duckdb_mcp`.
+`sitting_duck` (code semantics), `duck_tails` (git state), `read_lines` (file retrieval),
+`duckdb_markdown` (document structure) — and adds conversation analysis capabilities,
+all exposed as purpose-built MCP tools via `duckdb_mcp`.
 
 The name: it's where all the ducks roost together.
 
@@ -24,6 +24,8 @@ low-level bash commands for tasks that are fundamentally *data retrieval*:
   "find all function definitions matching X"
 - **Git queries**: `git log --oneline`, `git diff HEAD~3` — when what you want is
   "what changed in src/ this week?"
+- **Documentation**: Reading entire markdown files when you only need one section —
+  when what you want is "give me the Installation section from README.md"
 - **Conversation history**: No tooling at all — when what you want is
   "what approaches did we try last session?"
 
@@ -46,6 +48,7 @@ duck_nest/
   sql/
     source.sql                # read_lines macros + tools
     code.sql                  # sitting_duck macros + tools
+    docs.sql                  # duckdb_markdown macros + tools
     repo.sql                  # duck_tails macros + tools
     conversations.sql         # Conversation log analysis macros + tools
   docs/
@@ -61,6 +64,7 @@ duck_nest/
 | `duckdb_mcp` | MCP server infrastructure, tool publishing | Required |
 | `read_lines` | Line-level file access with ranges/context | Required |
 | `sitting_duck` | AST parsing, semantic code analysis (27 langs) | Required |
+| `duckdb_markdown` | Markdown section/block parsing and extraction | Required |
 | `duck_tails` | Git repository state as queryable tables | Required |
 | `json` | JSONL conversation log parsing | Built-in |
 
@@ -71,11 +75,13 @@ duck_nest/
 LOAD duckdb_mcp;
 LOAD read_lines;
 LOAD sitting_duck;
+LOAD markdown;
 LOAD duck_tails;
 
 -- Load macro definitions
 .read sql/source.sql
 .read sql/code.sql
+.read sql/docs.sql
 .read sql/repo.sql
 .read sql/conversations.sql
 
@@ -179,7 +185,70 @@ Returns: file_path, kind, name, start_line, end_line, children_count
 
 **Replaces**: Manual file reading to understand code organization
 
-### Tier 3: Repository Intelligence (`duck_tails`)
+### Tier 3: Documentation Intelligence (`duckdb_markdown`)
+
+These provide structured access to markdown documentation — selective section
+retrieval, code block extraction, and document structure overview. This is the
+documentation counterpart to `sitting_duck`'s source code analysis.
+
+#### `read_doc_section`
+Read a specific section from a markdown file by section ID or heading.
+
+```
+Parameters:
+  file: string       — Markdown file path (required)
+  section: string    — Section ID slug, e.g., "installation" (required)
+  include_children: boolean — Include subsections (optional, default true)
+
+Returns: section_id, title, level, content, parent_id
+```
+
+**Replaces**: Reading an entire file just to find one section. Uses
+`read_markdown_sections` fragment syntax (`'file.md#section'`) underneath.
+
+#### `doc_outline`
+Get the structural outline (table of contents) of a markdown file or directory.
+
+```
+Parameters:
+  path: string       — File or glob pattern (required)
+  max_level: integer — Max heading depth (optional, default 3)
+
+Returns: file_path, section_id, section_path, level, title, start_line, end_line
+```
+
+**Use case**: Agent decides which section to read before committing tokens
+to reading full content. Especially valuable for large docs.
+
+#### `find_code_examples`
+Extract code blocks from documentation, filtered by language.
+
+```
+Parameters:
+  path: string       — File or glob pattern (required)
+  language: string   — Code block language filter (optional)
+
+Returns: file_path, language, code, line_number, section_title
+```
+
+**Replaces**: Manually reading docs to find example code. Uses
+`md_extract_code_blocks()` underneath.
+
+#### `doc_search`
+Search across documentation content with structural context.
+
+```
+Parameters:
+  query: string      — Text to search for (required)
+  path: string       — File or glob pattern (optional, default "**/*.md")
+
+Returns: file_path, section_id, section_title, line_number, match_context
+```
+
+**Replaces**: `grep -rn "query" docs/` — but returns section context instead
+of raw line matches.
+
+### Tier 4: Repository Intelligence (`duck_tails`)
 
 These replace git CLI commands with structured, composable results.
 
@@ -237,7 +306,7 @@ Returns: line_number, content
 
 **Replaces**: `git show revision:path`
 
-### Tier 4: Conversation Intelligence (DuckDB JSON)
+### Tier 5: Conversation Intelligence (DuckDB JSON)
 
 These provide queryable access to Claude Code conversation history.
 
@@ -302,6 +371,17 @@ Because everything is DuckDB, tools compose naturally:
 SELECT d.name, d.file_path, d.start_line, c.message
 FROM find_defs('*', 'src/') d
 JOIN recent_commits(3) c ON d.file_path = ANY(c.files_changed);
+
+-- "Find documented functions that lack code examples in docs"
+-- (sitting_duck + duckdb_markdown)
+SELECT d.name, d.file_path
+FROM find_defs('*', 'src/', kind := 'function') d
+LEFT JOIN (
+    SELECT DISTINCT cb.code
+    FROM read_markdown_sections('docs/**/*.md') s,
+    LATERAL md_extract_code_blocks(s.content) cb
+) doc ON doc.code LIKE '%' || d.name || '%'
+WHERE doc.code IS NULL;
 ```
 
 This kind of cross-cutting query is impossible with separate bash commands.
@@ -320,7 +400,26 @@ history, and analyzes conversations. It does not modify anything.
 explicitly out of scope — they belong in a separate "safe-git" server with
 purpose-built safety guardrails.
 
-### 5. Zero configuration for common cases
+### 5. Symmetric structure: code and docs are peers
+
+`sitting_duck` and `duckdb_markdown` form a natural pair. Both provide
+structured, selective retrieval from files that would otherwise require
+flat text reading:
+
+| Concern | Extension | Unit of structure | Selection |
+|---------|-----------|-------------------|-----------|
+| Source code | `sitting_duck` | AST nodes (functions, classes) | Semantic type predicates |
+| Documentation | `duckdb_markdown` | Sections, blocks, code blocks | Section ID / heading hierarchy |
+| Git history | `duck_tails` | Commits, trees, file versions | Revision / path |
+| File content | `read_lines` | Lines | Line number / range |
+| Conversations | DuckDB JSON | Messages, tool calls | Session / timestamp / content |
+
+An agent exploring a codebase can use `code_structure` to understand the code,
+`doc_outline` to understand the docs, `recent_changes` to understand what's
+active, and `read_source`/`read_doc_section` to drill into specifics — all
+without a single bash command.
+
+### 6. Zero configuration for common cases
 
 The server should work with sensible defaults when launched from a project
 directory. Extensions auto-detect languages, git discovers the repo,
@@ -394,5 +493,7 @@ Duck Nest is successful when:
 - An agent can answer "what files changed since yesterday?" with structured data,
   not git log text parsing
 - An agent can read specific line ranges from 5 files in a single tool call
+- An agent can get just the "Configuration" section from a README without reading
+  the whole file
 - A user can analyze their past conversations to identify tool usage patterns
 - The `settings.json` bash whitelist shrinks by 50%+ without loss of capability
