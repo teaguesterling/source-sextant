@@ -8,12 +8,11 @@
 -- Usage:
 --   duckdb -init /path/to/source-sextant/init-source-sextant.sql
 --
--- The MCP client must set cwd to the target project directory.
--- CWD is captured as sextant_root before filesystem lockdown.
---
--- .read paths are relative to CWD where duckdb is invoked,
--- not relative to this init script. The Claude Code config must
--- set the correct working directory or use absolute paths.
+-- The MCP client must set cwd to the source-sextant directory so
+-- .read paths resolve correctly (they are relative to CWD, not to
+-- this init script). The target project root is passed separately
+-- via the SEXTANT_PROJECT_ROOT environment variable, or by
+-- pre-setting the sextant_root DuckDB variable.
 
 -- Suppress output during initialization
 .headers off
@@ -28,9 +27,10 @@ LOAD markdown;
 LOAD duck_tails;
 
 -- Capture project root before lockdown.
--- Override sextant_root before this point to use a custom root.
+-- Priority: pre-set variable > SEXTANT_PROJECT_ROOT env var > CWD.
 SET VARIABLE sextant_root = COALESCE(
     getvariable('sextant_root'),
+    NULLIF(getenv('SEXTANT_PROJECT_ROOT'), ''),
     getenv('PWD')
 );
 

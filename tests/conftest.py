@@ -80,8 +80,7 @@ def repo_macros(con):
 def all_macros(con):
     """Connection with ALL extensions and ALL macros loaded.
 
-    Load order: extensions first, then drop sitting_duck's conflicting
-    read_lines macro (see sitting_duck#22), then load SQL macro files.
+    Load order: extensions first, then SQL macro files.
     """
     con.execute("LOAD read_lines")
     con.execute("LOAD sitting_duck")
