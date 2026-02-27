@@ -314,6 +314,19 @@ class TestGitChanges:
         text = call_tool(mcp_server, "GitChanges", {"count": "3"})
         assert md_row_count(text) <= 3
 
+    def test_messages_are_single_line(self, mcp_server):
+        text = call_tool(mcp_server, "GitChanges", {})
+        # Data rows only (skip header + separator)
+        data_lines = [
+            l for l in text.strip().split("\n")
+            if l.strip().startswith("|")
+        ][2:]
+        for line in data_lines:
+            # Each message cell should have no embedded newlines
+            cells = line.split("|")
+            message = cells[4].strip() if len(cells) > 4 else ""
+            assert "\n" not in message
+
 
 class TestGitBranches:
     def test_lists_branches(self, mcp_server):
