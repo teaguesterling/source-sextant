@@ -14,8 +14,12 @@ import pytest
 
 from conftest import CONFTEST_PATH, PROJECT_ROOT, SPEC_PATH
 
-# sitting_duck test data for multi-language coverage
-SITTING_DUCK_DATA = os.path.expanduser("~/Projects/sitting_duck/test/data")
+# sitting_duck test data for multi-language coverage.
+# Set SITTING_DUCK_DATA env var to override the default path.
+SITTING_DUCK_DATA = os.environ.get(
+    "SITTING_DUCK_DATA",
+    os.path.expanduser("~/Projects/sitting_duck/test/data"),
+)
 JS_SIMPLE = os.path.join(SITTING_DUCK_DATA, "javascript/simple.js")
 JS_IMPORTS = os.path.join(SITTING_DUCK_DATA, "javascript/imports.js")
 RUST_SIMPLE = os.path.join(SITTING_DUCK_DATA, "rust/simple.rs")
@@ -339,6 +343,13 @@ class TestCodeToolsRust:
         assert "create_user" in text
         assert md_row_count(text) >= 1
 
+    def test_find_calls(self, mcp_server):
+        text = call_tool(mcp_server, "FindCalls", {
+            "file_pattern": RUST_SIMPLE,
+        })
+        assert md_row_count(text) > 0
+        assert "validate_email" in text
+
     def test_find_imports(self, mcp_server):
         text = call_tool(mcp_server, "FindImports", {
             "file_pattern": RUST_IMPORTS,
@@ -368,6 +379,19 @@ class TestCodeToolsGo:
         })
         assert md_row_count(text) > 0
 
+    def test_find_imports(self, mcp_server):
+        text = call_tool(mcp_server, "FindImports", {
+            "file_pattern": GO_SIMPLE,
+        })
+        assert "fmt" in text
+
+    def test_code_structure(self, mcp_server):
+        text = call_tool(mcp_server, "CodeStructure", {
+            "file_pattern": GO_SIMPLE,
+        })
+        assert "Hello" in text
+        assert md_row_count(text) > 0
+
 
 @_skip_no_data
 class TestCodeToolsPython:
@@ -380,16 +404,23 @@ class TestCodeToolsPython:
         assert "hello" in text
         assert "MyClass" in text
 
+    def test_find_calls(self, mcp_server):
+        text = call_tool(mcp_server, "FindCalls", {
+            "file_pattern": PY_SIMPLE,
+        })
+        assert md_row_count(text) > 0
+
     def test_find_imports(self, mcp_server):
         text = call_tool(mcp_server, "FindImports", {
             "file_pattern": PY_IMPORTS,
         })
         assert "os" in text
 
-    def test_find_calls(self, mcp_server):
-        text = call_tool(mcp_server, "FindCalls", {
+    def test_code_structure(self, mcp_server):
+        text = call_tool(mcp_server, "CodeStructure", {
             "file_pattern": PY_SIMPLE,
         })
+        assert "MyClass" in text
         assert md_row_count(text) > 0
 
 
