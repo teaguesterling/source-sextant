@@ -30,10 +30,6 @@ PY_IMPORTS = os.path.join(SITTING_DUCK_DATA, "python/imports.py")
 
 _has_sitting_duck_data = os.path.isdir(SITTING_DUCK_DATA)
 
-# Cache for tool schemas (module-level because DuckDB C connections
-# don't support setattr for arbitrary attributes)
-_schema_cache = {}
-
 # The 11 V1 tools that should be published
 V1_TOOLS = [
     "ListFiles",
@@ -73,6 +69,9 @@ def list_tools(con):
     return resp["result"]["tools"]
 
 
+_mcp_schemas_cache = {}
+
+
 def call_tool(con, tool_name, arguments=None):
     """Call an MCP tool and return the text content.
 
@@ -82,13 +81,14 @@ def call_tool(con, tool_name, arguments=None):
     """
     args = dict(arguments or {})
 
-    # Auto-fill missing params with null using cached tool schemas
+    # Auto-fill missing params with null using cached tool schemas.
+    # Keyed on connection id so multiple connections don't cross-pollinate.
     con_id = id(con)
-    if con_id not in _schema_cache:
-        _schema_cache[con_id] = {
+    if con_id not in _mcp_schemas_cache:
+        _mcp_schemas_cache[con_id] = {
             t["name"]: t["inputSchema"] for t in list_tools(con)
         }
-    schema = _schema_cache[con_id].get(tool_name, {})
+    schema = _mcp_schemas_cache[con_id].get(tool_name, {})
     for prop in schema.get("properties", {}):
         if prop not in args:
             args[prop] = None
@@ -450,9 +450,9 @@ class TestMDSection:
     def test_reads_specific_section(self, mcp_server):
         text = call_tool(mcp_server, "MDSection", {
             "file_path": SPEC_PATH,
-            "section_id": "status",
+            "section_id": "architecture",
         })
-        assert len(text) > 0
+        assert "architecture" in text.lower()
 
 
 # -- Git --
@@ -466,6 +466,19 @@ class TestGitChanges:
     def test_count_parameter(self, mcp_server):
         text = call_tool(mcp_server, "GitChanges", {"count": "3"})
         assert md_row_count(text) <= 3
+
+    def test_messages_are_single_line(self, mcp_server):
+        text = call_tool(mcp_server, "GitChanges", {})
+        # Data rows only (skip header + separator)
+        data_lines = [
+            l for l in text.strip().split("\n")
+            if l.strip().startswith("|")
+        ][2:]
+        for line in data_lines:
+            # Each message cell should have no embedded newlines
+            cells = line.split("|")
+            message = cells[4].strip() if len(cells) > 4 else ""
+            assert "\n" not in message
 
 
 class TestGitBranches:
