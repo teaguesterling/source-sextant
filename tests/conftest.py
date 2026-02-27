@@ -96,6 +96,31 @@ def all_macros(con):
     return con
 
 
+@pytest.fixture(scope="session")
+def mcp_server():
+    """MCP server with all tools published via memory transport.
+
+    Session-scoped: all MCP tests share one connection since tools are
+    read-only queries. Loads all extensions, macros, and tool publications,
+    then starts the MCP server on memory transport for testing.
+    """
+    con = duckdb.connect(":memory:")
+    con.execute("LOAD read_lines")
+    con.execute("LOAD sitting_duck")
+    con.execute("LOAD markdown")
+    con.execute("LOAD duck_tails")
+    con.execute("DROP MACRO TABLE IF EXISTS read_lines")
+    load_sql(con, "source.sql")
+    load_sql(con, "code.sql")
+    load_sql(con, "docs.sql")
+    load_sql(con, "repo.sql")
+    con.execute("LOAD duckdb_mcp")
+    load_sql(con, "tools.sql")
+    con.execute("SELECT mcp_server_start('memory')")
+    yield con
+    con.close()
+
+
 # -- Synthetic conversation data for conversation macro tests --
 
 CONVERSATION_RECORDS = [
