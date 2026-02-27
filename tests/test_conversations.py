@@ -212,17 +212,17 @@ class TestToolFrequency:
 class TestSearchMessages:
     def test_finds_user_text(self, conversation_macros):
         rows = conversation_macros.execute(
-            "SELECT * FROM search_messages('fix the bug')"
+            "SELECT role FROM search_messages('fix the bug')"
         ).fetchall()
         assert len(rows) >= 1
-        assert any(r[3] == "user" for r in rows)  # role column
+        assert any(r[0] == "user" for r in rows)
 
     def test_finds_assistant_text_blocks(self, conversation_macros):
         rows = conversation_macros.execute(
-            "SELECT * FROM search_messages('auth module')"
+            "SELECT role FROM search_messages('auth module')"
         ).fetchall()
         assert len(rows) >= 1
-        assert any(r[3] == "assistant" for r in rows)
+        assert any(r[0] == "assistant" for r in rows)
 
 
 class TestSearchToolInputs:

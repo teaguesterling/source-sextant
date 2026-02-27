@@ -30,18 +30,20 @@ SELECT * FROM find_definitions('src/**/*.py', '%parse%');
 -- Instead of: git log --oneline -n 10
 SELECT * FROM recent_changes(10);
 
--- Cross-tier: find functions that changed recently
-SELECT d.name, d.file_path, c.message
+-- Cross-tier: definitions in large files
+SELECT d.name, d.file_path, f.line_count
 FROM find_definitions('src/**/*.py') d
-JOIN recent_changes(3) c ON d.file_path = ANY(c.files_changed);
+JOIN file_line_count('src/**/*.py') f ON d.file_path = f.file_path
+WHERE f.line_count > 100;
 ```
 
 ## Status
 
-**Alpha** — SQL macros and tests are working. MCP server integration is next.
+**Alpha** — SQL macros, MCP tool publications, and path sandboxing are working.
 
-- 63 passing tests across 4 macro tiers
-- Conversation schema drafted
+- 151 tests across 5 macro tiers + MCP integration + sandbox
+- 8 of 11 MCP tools published (code, docs, git complete; file tools pending)
+- Conversation analysis macros fully tested
 - See the [Product Spec](vision/PRODUCT_SPEC.md) for the full design
 
 ## Quick Links

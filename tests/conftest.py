@@ -80,8 +80,8 @@ def repo_macros(con):
 def all_macros(con):
     """Connection with ALL extensions and ALL macros loaded.
 
-    Load order matters: source.sql drops sitting_duck's conflicting
-    read_lines macro, so it must load after sitting_duck.
+    Load order: extensions first, then drop sitting_duck's conflicting
+    read_lines macro (see sitting_duck#22), then load SQL macro files.
     """
     con.execute("LOAD read_lines")
     con.execute("LOAD sitting_duck")
@@ -270,8 +270,11 @@ def conversation_macros(con, tmp_path):
         for record in CONVERSATION_RECORDS:
             f.write(json.dumps(record) + "\n")
 
-    # load_conversations() must be defined first, then raw_conversations
-    # must exist before the remaining macros (which reference it directly).
+    # Bootstrap: define load_conversations() inline so we can create
+    # raw_conversations BEFORE loading conversations.sql. DuckDB validates
+    # table references at macro definition time, so raw_conversations must
+    # exist when conversations.sql's other macros are parsed.
+    # conversations.sql redefines load_conversations() identically.
     con.execute(f"""
         CREATE OR REPLACE MACRO load_conversations(path) AS TABLE
             SELECT *, filename AS _source_file

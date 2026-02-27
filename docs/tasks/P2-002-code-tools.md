@@ -1,6 +1,6 @@
 # P2-002: Code Tools (FindDefinitions, FindCalls, FindImports, CodeStructure)
 
-**Status:** Not started
+**Status:** Complete
 **Depends on:** None (can be implemented independently)
 **Estimated scope:** Tool publications only — existing macros match signatures
 

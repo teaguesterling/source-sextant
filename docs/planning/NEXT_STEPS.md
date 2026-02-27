@@ -1,7 +1,7 @@
 # Source Sextant: Next Steps
 
 **Last session**: 2026-02-26 (afternoon)
-**State**: 9 commits, 94 passing tests, 5 macro tiers working + conversations tested
+**State**: 138 passing tests (13 expected failures pending P2-001), MCP tools published for code/docs/git
 
 ## What Exists
 
@@ -10,20 +10,29 @@ source-sextant/
   sql/
     source.sql          ✅ 4 macros, 13 tests
     code.sql            ✅ 4 macros, 13 tests
-    docs.sql            ✅ 4 macros, 16 tests
+    docs.sql            ✅ 4 macros, 19 tests
     repo.sql            ✅ 5 macros, 18 tests
     conversations.sql   ✅ 13 macros, 31 tests (converted from views)
+    sandbox.sql         ✅ resolve() macro + path sandboxing, 12 tests
+    tools/
+      code.sql          ✅ 4 tool publications (FindDefinitions, FindCalls, FindImports, CodeStructure)
+      docs.sql          ✅ 2 tool publications (MDOutline, MDSection)
+      git.sql           ✅ 2 tool publications (GitChanges, GitBranches)
+      files.sql         ⚠️  Not yet created (P2-001: ListFiles, ReadLines, ReadAsTable)
   tests/
-    conftest.py         ✅ Fixtures for all tiers + synthetic JSONL data
+    conftest.py         ✅ Fixtures for all tiers + MCP server + synthetic JSONL data
     test_source.py      ✅ 13 tests
     test_code.py        ✅ 13 tests
-    test_docs.py        ✅ 16 tests
+    test_docs.py        ✅ 19 tests
     test_repo.py        ✅ 18 tests (includes cross-tier composition)
     test_conversations.py ✅ 31 tests (12 test classes)
+    test_sandbox.py     ✅ 12 tests (resolve() + lockdown verification)
+    test_mcp_server.py  ✅ 45 tests (32 passing, 13 expected failures pending P2-001)
   docs/
     index.md                    Docs landing page
     getting-started.md          Installation and usage guide
     macros/                     Macro reference (all 5 tiers)
+    tasks/                      Task plans (P2-001 through P3-004)
     vision/
       PRODUCT_SPEC.md           5-tier architecture, tool designs
       CONVERSATION_ANALYSIS.md  DuckDB analysis of 270 JSONL files
@@ -72,64 +81,28 @@ Renamed from `duck_nest` to `source-sextant`.
 ### Documentation infrastructure (2026-02-26 morning)
 ReadTheDocs + mkdocs-material, macro reference pages, getting started guide.
 
-## Immediate Next: Init Script + MCP Server
+## Immediate Next
 
-All macros are tested. Time to wire them up as an actual MCP server.
+### P2-001: File Tools (ListFiles, ReadLines, ReadAsTable)
 
-### 1. Write `init-source-sextant.sql`
+The last 3 MCP tools to publish. Requires:
+- New macros in `sql/source.sql`: `list_files()`, `read_as_table()`
+- Extend `read_source()` with optional `match` and `commit` params
+- Create `sql/tools/files.sql` with 3 `mcp_publish_tool()` calls
+- 13 tests in `test_mcp_server.py` already written and waiting
 
-The entry point that loads everything and starts the server:
+See `docs/tasks/P2-001-files-tools.md` for full spec.
 
-```sql
-LOAD duckdb_mcp;
-LOAD read_lines;
-LOAD sitting_duck;
-LOAD markdown;
-LOAD duck_tails;
+### P2-005: Init Script + Config (partially complete)
 
--- Fix sitting_duck read_lines collision
-DROP MACRO TABLE IF EXISTS read_lines;
+- ✅ `sql/sandbox.sql` — path resolution and lockdown
+- ✅ `tests/conftest.py` — MCP server fixture with memory transport
+- ⚠️ `init-source-sextant.sql` — entry point for `duckdb -init` (not yet created)
+- ⚠️ `config/claude-code.example.json` — example MCP config (not yet created)
 
--- Load macros
--- (Need to figure out how to .read SQL files from init script,
--- or inline all macros into init-source-sextant.sql)
+See `docs/tasks/P2-005-init-and-config.md` for full spec.
 
--- Publish MCP tools via mcp_publish_tool()
--- ... one call per tool ...
-
--- Start server
-SELECT mcp_server_start('stdio', '{
-    "enable_query_tool": true,
-    "enable_execute_tool": false,
-    "default_result_format": "markdown"
-}');
-```
-
-**Open question**: Can `duckdb -init` use `.read` to load separate SQL
-files? If not, we may need a build step that concatenates everything
-into a single init script, or just inline the macros.
-
-### 2. Define MCP tool publications
-
-Each macro needs a `mcp_publish_tool()` call. The tool count question from
-the spec is real: 104 tool names already exist in conversation logs. Consider
-being selective about which macros become tools vs. stay as power-user SQL.
-
-### 3. Claude Code configuration
-
-Add to `~/.claude/settings.json`:
-```json
-{
-  "mcpServers": {
-    "source_sextant": {
-      "command": "duckdb",
-      "args": ["-init", "/path/to/source_sextant/init-source-sextant.sql"]
-    }
-  }
-}
-```
-
-### 4. Conversation data loading
+### Conversation data loading
 
 The `conversation_macros` fixture showed the load pattern works:
 `load_conversations()` → `CREATE TABLE raw_conversations`. For the MCP server,

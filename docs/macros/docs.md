@@ -32,7 +32,7 @@ SELECT * FROM doc_outline('docs/**/*.md', 2);
 Read a specific section from a markdown file by section ID.
 
 ```sql
-read_doc_section(file_path, section_id)
+read_doc_section(file_path, target_id)
 ```
 
 **Returns**: `section_id`, `title`, `level`, `content`, `start_line`, `end_line`

@@ -1,6 +1,6 @@
 # P2-004: Git Tools (GitChanges, GitBranches)
 
-**Status:** Not started
+**Status:** Complete
 **Depends on:** None (can be implemented independently)
 **Estimated scope:** Tool publications only — existing macros match signatures
 
