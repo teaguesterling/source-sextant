@@ -45,8 +45,8 @@ Then use the macros:
 -- Read lines 10-20 from a file
 SELECT * FROM read_source('src/main.py', '10-20');
 
--- Find all class definitions
-SELECT * FROM find_definitions('src/**/*.py', '%', 'class');
+-- Find all definitions
+SELECT * FROM find_definitions('src/**/*.py');
 
 -- Get the table of contents for all markdown files
 SELECT * FROM doc_outline('docs/**/*.md');
@@ -58,9 +58,9 @@ SELECT * FROM recent_changes(10);
 ## MCP Server Setup
 
 !!! note
-    MCP server integration is coming soon. The init script and tool publications are the next development phase.
+    8 of 11 MCP tools are published and tested (code, docs, git). The `init-source-sextant.sql` entry point and example config are still pending (P2-005).
 
-Once available, add to your Claude Code settings:
+Once the init script is ready, add to your Claude Code settings:
 
 ```json
 {
