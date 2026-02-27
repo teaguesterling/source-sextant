@@ -18,10 +18,11 @@ Instead of agents running `cat`, `grep`, `git log`, and other bash commands that
 
 ## Status
 
-Alpha. SQL macros and tests are working across all tiers. MCP server integration is next.
+Alpha. SQL macros, MCP tool publications, and path sandboxing are working.
 
-- 63 passing tests across 4 macro tiers
-- Conversation schema drafted (testing in progress)
+- 151 tests across 5 macro tiers + MCP integration + sandbox
+- 8 of 11 MCP tools published (code, docs, git tools complete; file tools pending)
+- Conversation analysis macros fully tested (31 tests)
 - See [docs/vision/PRODUCT_SPEC.md](docs/vision/PRODUCT_SPEC.md) for the full specification
 
 ## Quick Example
@@ -39,10 +40,11 @@ SELECT * FROM read_doc_section('README.md', 'installation');
 -- What changed in src/ in the last 5 commits?
 SELECT * FROM recent_changes(5, '.');
 
--- Cross-tier composition: functions that changed recently
-SELECT d.name, d.file_path, c.message
+-- Cross-tier composition: definitions in large files
+SELECT d.name, d.file_path, f.line_count
 FROM find_definitions('src/**/*.py') d
-JOIN recent_changes(3) c ON d.file_path = ANY(c.files_changed);
+JOIN file_line_count('src/**/*.py') f ON d.file_path = f.file_path
+WHERE f.line_count > 100;
 ```
 
 ## Requirements

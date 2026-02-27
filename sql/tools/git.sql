@@ -1,4 +1,7 @@
+-- Source Sextant: Git Repository Tool Publications
+--
 -- MCP tool publications for git repository state.
+-- Wraps macros from sql/repo.sql.
 --
 -- Embeds sextant_root at publish time (getvariable is not available
 -- in MCP tool execution context). Must be loaded after sandbox.sql

@@ -28,12 +28,14 @@ CREATE OR REPLACE MACRO doc_outline(file_pattern, max_lvl := 3) AS TABLE
     ORDER BY file_path, start_line;
 
 -- read_doc_section: Read a specific section from a markdown file.
--- Uses fragment syntax for direct section access.
+-- Uses section ID or path prefix matching for flexible section access.
+-- Parameter named target_id (not section_id) to avoid shadowing the
+-- column s.section_id in the WHERE clause.
 --
 -- Examples:
 --   SELECT * FROM read_doc_section('README.md', 'installation');
 --   SELECT * FROM read_doc_section('docs/guide.md', 'getting-started');
-CREATE OR REPLACE MACRO read_doc_section(file_path, section_id) AS TABLE
+CREATE OR REPLACE MACRO read_doc_section(file_path, target_id) AS TABLE
     SELECT
         s.section_id,
         s.title,
@@ -47,9 +49,9 @@ CREATE OR REPLACE MACRO read_doc_section(file_path, section_id) AS TABLE
         include_content := true,
         include_filepath := false
     ) s
-    WHERE s.section_id = section_id
-       OR s.section_path LIKE '%/' || section_id
-       OR s.section_path LIKE section_id || '/%';
+    WHERE s.section_id = target_id
+       OR s.section_path LIKE '%/' || target_id
+       OR s.section_path LIKE target_id || '/%';
 
 -- find_code_examples: Extract code blocks from documentation.
 -- Optionally filter by language.

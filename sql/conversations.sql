@@ -1,8 +1,11 @@
 -- conversations.sql: DuckDB macros for analyzing Claude Code conversation logs
 --
 -- Prerequisites: A `raw_conversations` table must exist before loading this file.
--- Use load_conversations() to create it, then load the rest of the macros.
--- Tier 2+ macros reference other macros (deferred resolution at call time).
+-- DuckDB validates table references at macro definition time, so you must:
+--   1. Define load_conversations() (or copy the definition below)
+--   2. CREATE TABLE raw_conversations AS SELECT * FROM load_conversations(...)
+--   3. Then load this file (which redefines load_conversations and adds all other macros)
+-- Macro-to-macro references ARE deferred (resolved at call time).
 -- All objects are CREATE OR REPLACE for idempotency.
 -- See docs/vision/CONVERSATION_SCHEMA_DESIGN.md for design details.
 

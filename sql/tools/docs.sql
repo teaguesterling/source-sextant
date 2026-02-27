@@ -23,5 +23,6 @@ SELECT mcp_publish_tool(
         $section_id
     )',
     '{"file_path": {"type": "string", "description": "Path to the markdown file"}, "section_id": {"type": "string", "description": "Section ID from MDOutline (e.g. installation, getting-started)"}}',
-    '["file_path", "section_id"]'
+    '["file_path", "section_id"]',
+    'markdown'
 );

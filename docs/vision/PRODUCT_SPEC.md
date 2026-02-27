@@ -1,7 +1,7 @@
 # Source Sextant: Product Specification
 
 **Version**: 0.1 (Draft)
-**Status**: Vision / Pre-implementation
+**Status**: Alpha — Phase 2 (MCP tool publications) in progress
 
 ## What Is Source Sextant?
 

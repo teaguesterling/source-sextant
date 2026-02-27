@@ -21,7 +21,7 @@ CREATE OR REPLACE MACRO read_source(file_path, lines := NULL, ctx := 0) AS TABLE
         content
     FROM read_lines(file_path, lines, context := ctx);
 
--- read_source_numbered: Like read_source but includes file_path column
+-- read_source_batch: Like read_source but includes file_path column
 -- for multi-file batch reads via glob patterns.
 --
 -- Examples:

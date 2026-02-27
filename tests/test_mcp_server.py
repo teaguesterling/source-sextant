@@ -465,7 +465,7 @@ class TestGitChanges:
 
     def test_count_parameter(self, mcp_server):
         text = call_tool(mcp_server, "GitChanges", {"count": "3"})
-        assert md_row_count(text) <= 3
+        assert 1 <= md_row_count(text) <= 3
 
     def test_messages_are_single_line(self, mcp_server):
         text = call_tool(mcp_server, "GitChanges", {})

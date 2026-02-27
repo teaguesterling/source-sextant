@@ -80,4 +80,4 @@ pip install duckdb pytest
 pytest
 ```
 
-All 63 tests should pass across the 4 macro tiers.
+All 151 tests should pass across 5 macro tiers, MCP integration, and sandbox tests (13 are expected failures until P2-001 file tools are implemented).

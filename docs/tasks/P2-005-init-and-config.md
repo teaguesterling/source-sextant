@@ -1,6 +1,6 @@
 # P2-005: Init Script, Test Fixture, Config & Sandboxing
 
-**Status:** Not started
+**Status:** In progress (sandbox.sql + test fixture complete, init script + config pending)
 **Depends on:** P2-001 through P2-004 (all tool categories)
 **Estimated scope:** New files + fixture update
 

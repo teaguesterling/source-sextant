@@ -1,6 +1,6 @@
 # P2-003: Docs Tools (MDOutline, MDSection)
 
-**Status:** Not started
+**Status:** Complete
 **Depends on:** None (can be implemented independently)
 **Estimated scope:** Tool publications only — existing macros match signatures
 
