@@ -115,7 +115,11 @@ These are hard-won lessons. Don't remove workarounds without verifying the upstr
 
 7. **LATERAL UNNEST in macros** — Evaluates before WHERE with mixed-type JSON. Use CTEs to filter first.
 
-8. **C++ table functions reject column refs in macros** — `text_diff_lines(r.col)` fails with "does not support lateral join column parameters". Subqueries also rejected. Workaround: reimplement in pure SQL (e.g., `unnest(string_split())` + CASE).
+8. **`query_table()` Python collision** — DuckDB's `query_table()` uses Python replacement scans, which collide with `import json`. Use `read_json_auto()`/`read_csv_auto()` with `query()` for dynamic dispatch instead.
+
+9. **Table functions in UNION ALL dead branches** — Table functions like `glob()` may execute even in UNION ALL branches filtered by `WHERE false`, especially in the duckdb_mcp execution context. Use `query()` for conditional table function dispatch.
+
+10. **C++ table functions reject column refs in macros** — `text_diff_lines(r.col)` fails with "does not support lateral join column parameters". Subqueries also rejected. Workaround: reimplement in pure SQL (e.g., `unnest(string_split())` + CASE).
 
 ## Tests
 
@@ -178,3 +182,19 @@ docs/
 10. Filesystem lockdown                     (after all .read commands)
 11. Start MCP server
 ```
+
+<!-- blq:agent-instructions -->
+## blq - Build Log Query
+
+Run builds and tests via blq MCP tools, not via Bash directly:
+- `mcp__blq_mcp__commands` - list available commands
+- `mcp__blq_mcp__run` - run a registered command (e.g., `run(command="test")`)
+- `mcp__blq_mcp__register_command` - register new commands
+- `mcp__blq_mcp__status` - check current build/test status
+- `mcp__blq_mcp__errors` - view errors from runs
+- `mcp__blq_mcp__info` - detailed run info (supports relative refs like `+1`, `latest`)
+- `mcp__blq_mcp__output` - search/filter captured logs (grep, tail, head, lines)
+
+Do NOT use shell pipes or redirects in commands (e.g., `pytest | tail -20`).
+Instead: run the command, then use `output(run_id=N, tail=20)` to filter.
+<!-- /blq:agent-instructions -->

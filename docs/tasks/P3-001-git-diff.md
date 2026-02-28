@@ -77,7 +77,7 @@ SELECT * FROM text_diff_lines(
   for accurate modification detection (not size comparison).
 - **`text_diff_lines()` limitation**: Cannot accept column references or
   subqueries inside macros. Worked around with pure SQL parsing using
-  `unnest(string_split())`. See CLAUDE.md DuckDB Quirks #8.
+  `unnest(string_split())`. See CLAUDE.md DuckDB Quirks #10.
 - **Context parameter**: Deferred to future work. `read_git_diff` returns all
   context lines by default.
 
