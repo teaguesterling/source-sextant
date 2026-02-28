@@ -133,3 +133,36 @@ CREATE OR REPLACE MACRO file_diff(file, from_rev, to_rev, repo := '.') AS TABLE
         line[2:] AS content
     FROM lines
     WHERE length(line) > 0;
+
+-- working_tree_status: Detect untracked and deleted files in the working tree.
+-- Compares tracked files at HEAD against filesystem via glob(). Cannot detect
+-- content modifications — only structural changes (files present or absent).
+-- Note: gitignored files will appear as 'untracked'.
+--
+-- Examples:
+--   SELECT * FROM working_tree_status();
+--   SELECT * FROM working_tree_status('/path/to/repo');
+CREATE OR REPLACE MACRO working_tree_status(repo := '.') AS TABLE
+    WITH
+        tracked AS (
+            SELECT file_path
+            FROM git_tree(repo, 'HEAD')
+            WHERE kind = 'file'
+        ),
+        on_disk AS (
+            SELECT replace(file, repo || '/', '') AS file_path
+            FROM glob(repo || '/**')
+            WHERE replace(file, repo || '/', '') <> '.git'
+              AND NOT starts_with(replace(file, repo || '/', ''), '.git/')
+        )
+    SELECT
+        COALESCE(t.file_path, d.file_path) AS file_path,
+        CASE
+            WHEN t.file_path IS NULL THEN 'untracked'
+            WHEN d.file_path IS NULL THEN 'deleted'
+        END AS status
+    FROM tracked t
+    FULL OUTER JOIN on_disk d
+        ON t.file_path = d.file_path
+    WHERE t.file_path IS NULL OR d.file_path IS NULL
+    ORDER BY status, file_path;

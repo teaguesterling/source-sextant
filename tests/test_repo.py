@@ -218,6 +218,56 @@ class TestFileDiff:
         assert "content" in col_names
 
 
+class TestWorkingTreeStatus:
+    def test_returns_without_error(self, repo_macros):
+        """Working tree status may be empty for clean trees but should not error."""
+        rows = repo_macros.execute(
+            "SELECT * FROM working_tree_status(?)", [REPO_PATH]
+        ).fetchall()
+        assert isinstance(rows, list)
+
+    def test_columns(self, repo_macros):
+        desc = repo_macros.execute(
+            "DESCRIBE SELECT * FROM working_tree_status(?)", [REPO_PATH]
+        ).fetchall()
+        col_names = [r[0] for r in desc]
+        assert "file_path" in col_names
+        assert "status" in col_names
+
+    def test_status_values(self, repo_macros):
+        rows = repo_macros.execute(
+            "SELECT DISTINCT status FROM working_tree_status(?)", [REPO_PATH]
+        ).fetchall()
+        statuses = {r[0] for r in rows}
+        assert statuses <= {"untracked", "deleted"}
+
+    def test_excludes_git_directory(self, repo_macros):
+        rows = repo_macros.execute(
+            "SELECT file_path FROM working_tree_status(?)", [REPO_PATH]
+        ).fetchall()
+        paths = [r[0] for r in rows]
+        for p in paths:
+            assert not p.startswith(".git/"), f"Should exclude .git/ paths: {p}"
+            assert p != ".git", f"Should exclude .git entry: {p}"
+
+    def test_tracked_files_not_reported(self, repo_macros):
+        """Known tracked files should not appear in the status output."""
+        rows = repo_macros.execute(
+            "SELECT file_path FROM working_tree_status(?)", [REPO_PATH]
+        ).fetchall()
+        paths = {r[0] for r in rows}
+        assert "CLAUDE.md" not in paths
+        assert "sql/repo.sql" not in paths
+
+    def test_ordered_by_status_then_path(self, repo_macros):
+        rows = repo_macros.execute(
+            "SELECT status, file_path FROM working_tree_status(?)", [REPO_PATH]
+        ).fetchall()
+        if len(rows) > 1:
+            pairs = [(r[0], r[1]) for r in rows]
+            assert pairs == sorted(pairs)
+
+
 class TestCrossExtensionComposition:
     """Test that macros from different tiers compose in the same connection."""
 

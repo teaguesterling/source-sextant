@@ -77,3 +77,12 @@ SELECT mcp_publish_tool(
     '["file", "rev"]',
     'markdown'
 );
+
+SELECT mcp_publish_tool(
+    'GitStatus',
+    'Working tree status: untracked and deleted files compared to HEAD. Does not detect content modifications — use GitDiffSummary for revision diffs. Gitignored files may appear as untracked.',
+    'SELECT * FROM working_tree_status(''' || getvariable('session_root') || ''')',
+    '{}',
+    '[]',
+    'markdown'
+);
