@@ -411,6 +411,24 @@ class TestGitBranches:
         assert md_row_count(text) > 0
 
 
+class TestGitStatus:
+    def test_returns_markdown_table(self, mcp_server):
+        text = call_tool(mcp_server, "GitStatus", {})
+        assert "file_path" in text
+        assert "status" in text
+
+    def test_no_tracked_files_in_output(self, mcp_server):
+        text = call_tool(mcp_server, "GitStatus", {})
+        data_lines = [
+            l for l in text.strip().split("\n")
+            if l.strip().startswith("|")
+        ][2:]  # skip header + separator
+        for line in data_lines:
+            file_path = line.split("|")[1].strip()
+            assert file_path != "CLAUDE.md"
+            assert file_path != "sql/repo.sql"
+
+
 # -- Help --
 
 
