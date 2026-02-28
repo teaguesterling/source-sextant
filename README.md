@@ -1,16 +1,16 @@
 # Source Sextant
 
-MCP tools that help AI agents get their bearings in a codebase — unified SQL views over code, git, docs, and conversations, powered by DuckDB.
+MCP tools that help AI agents get their bearings in a codebase — structured retrieval over code, git, docs, and conversations, powered by DuckDB.
 
 ## The Problem
 
-AI coding assistants navigate codebases through bash commands: `cat`, `grep`, `git log`, `sed -n '10,20p'`. These commands produce unstructured text the agent has to parse, require bash whitelisting in your settings, and can't compose with each other.
+AI coding agents retrieve data through shell commands. To find where `parse_config` is defined, an agent runs `grep -rn 'def parse_config' src/`, gets back raw text with line numbers and file paths mashed together, and then reads the file to get context around the match. To understand a function's signature, it reads the whole file and scans for it. To check git history, it runs `git log`, parses the output, then runs `git show` on each commit.
 
-When an agent wants "all function definitions matching `parse` in files that changed this week," it has to run `git log`, parse the output, run `grep` on each file, parse *that* output, and stitch it together. Each step burns tokens on text parsing instead of actual reasoning.
+Every one of these steps produces unstructured text the agent has to parse before it can reason about the answer. Tokens spent on text parsing are tokens not spent on solving your problem.
 
 ## What Source Sextant Does
 
-Source Sextant gives agents purpose-built MCP tools backed by structured SQL, so they spend tokens on reasoning instead of parsing text. It composes five DuckDB community extensions into a single queryable surface:
+Source Sextant replaces shell-command-and-parse with purpose-built MCP tools that return structured results. Each tool is backed by a DuckDB community extension that understands the data format natively:
 
 | Capability | Replaces | Extension |
 |-----------|----------|-----------|
@@ -20,19 +20,41 @@ Source Sextant gives agents purpose-built MCP tools backed by structured SQL, so
 | **Repository** — query commits, branches, tags, file history | `git log`, `git diff`, `git show` | [`duck_tails`](https://github.com/teaguesterling/duck_tails) |
 | **Conversations** — analyze Claude Code session history, tool usage, token costs | *(nothing — this capability didn't exist)* | DuckDB JSON |
 
-Because everything shares a DuckDB connection, tiers also compose through SQL joins:
+## Examples
 
+**Code Intelligence** — instead of `grep -rn 'def parse' src/`:
 ```sql
--- Definitions in large files — find code hotspots worth splitting up
-SELECT d.name, d.kind, d.file_path, f.line_count
-FROM find_definitions('src/**/*.py') d
-JOIN file_line_count('src/**/*.py') f ON d.file_path = f.file_path
-WHERE f.line_count > 200;
+SELECT * FROM find_definitions('src/**/*.py', 'parse%');
 ```
+Returns structured rows with file path, name, kind (function/class/method), line range, and signature — no text parsing needed.
+
+**Source Retrieval** — instead of `sed -n '37,47p' src/parser.py`:
+```sql
+SELECT * FROM read_context('src/parser.py', 42, 5);
+```
+Returns numbered lines centered on line 42 with 5 lines of context in each direction.
+
+**Documentation** — instead of reading an entire file to find one section:
+```sql
+SELECT * FROM read_doc_section('README.md', 'installation');
+```
+Returns just the matched section's content, with title and line range.
+
+**Repository** — instead of `git log --oneline -10`:
+```sql
+SELECT * FROM recent_changes(10);
+```
+Returns structured rows with hash, author, date, and message.
+
+**Conversations** — no shell equivalent:
+```sql
+SELECT * FROM bash_commands() WHERE replaceable_by IS NOT NULL;
+```
+Analyzes an agent's own bash usage to find commands Source Sextant could replace.
 
 ## How It Works
 
-Source Sextant is a DuckDB init script — not a traditional application. It loads extensions, defines SQL macros, publishes them as MCP tools, and starts a server:
+Source Sextant is a DuckDB init script. It loads extensions, defines SQL macros, publishes them as MCP tools, and starts a server:
 
 ```
 duckdb -init init-source-sextant.sql
@@ -51,31 +73,7 @@ Configure it in Claude Code's `settings.json`:
 }
 ```
 
-The architecture has two layers:
-
-1. **SQL macros** (`sql/<tier>.sql`) — reusable, independently testable DuckDB macros containing all the logic
-2. **Tool publications** (`sql/tools/<tier>.sql`) — thin wrappers that expose macros as MCP tools via `mcp_publish_tool()`
-
 Everything is read-only. Source Sextant retrieves and analyzes — it never modifies files or makes git writes.
-
-## Quick Examples
-
-```sql
--- Find all Python function definitions matching a pattern
-SELECT * FROM find_definitions('src/**/*.py', '%parse%');
-
--- Read specific lines with context (great for investigating errors)
-SELECT * FROM read_context('src/parser.py', 42, 5);
-
--- Get just the "Installation" section from a README
-SELECT * FROM read_doc_section('README.md', 'installation');
-
--- What changed in src/ in the last 5 commits?
-SELECT * FROM recent_changes(5, '.');
-
--- Which bash commands does the agent use most, and which ones could Source Sextant replace?
-SELECT * FROM bash_commands() WHERE replaceable_by IS NOT NULL;
-```
 
 ## Status
 
