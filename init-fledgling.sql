@@ -83,12 +83,20 @@ SELECT * FROM query(
 );
 .read sql/conversations.sql
 
+-- Materialize skill guide (fledgling dir not in allowed_directories after lockdown)
+CREATE TABLE _help_sections AS
+SELECT section_id, section_path, level, title, content, start_line, end_line
+FROM read_markdown_sections('SKILL.md', content_mode := 'full',
+    include_content := true, include_filepath := false);
+.read sql/help.sql
+
 -- Publish MCP tools (comment out a line to disable that category)
 .read sql/tools/files.sql
 .read sql/tools/code.sql
 .read sql/tools/docs.sql
 .read sql/tools/git.sql
 .read sql/tools/conversations.sql
+.read sql/tools/help.sql
 
 -- Lock down filesystem access (after all .read commands).
 -- session_root is always allowed; extras are appended if set.
