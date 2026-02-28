@@ -1,20 +1,89 @@
-# source-sextant
+# Source Sextant
 
 MCP tools that help AI agents get their bearings in a codebase — unified SQL views over code, git, docs, and conversations, powered by DuckDB.
 
-## What is this?
+## The Problem
 
-Source Sextant is a DuckDB-powered [MCP](https://modelcontextprotocol.io/) server that gives AI agents navigational awareness of development environments. It composes several DuckDB community extensions into a single queryable SQL surface:
+AI coding assistants navigate codebases through bash commands: `cat`, `grep`, `git log`, `sed -n '10,20p'`. These commands produce unstructured text the agent has to parse, require bash whitelisting in your settings, and can't compose with each other.
 
-| Tier | Extension | What it provides |
-|------|-----------|------------------|
-| Source Retrieval | [`read_lines`](https://duckdb.org/community_extensions/extensions/read_lines) | Line-level file access with ranges and context |
-| Code Intelligence | [`sitting_duck`](https://github.com/teaguesterling/sitting_duck) | AST-based code analysis (27 languages) |
-| Documentation | [`duckdb_markdown`](https://github.com/teaguesterling/duckdb_markdown) | Markdown section/block parsing and extraction |
-| Repository | [`duck_tails`](https://github.com/teaguesterling/duck_tails) | Git repository state as queryable tables |
-| Conversations | DuckDB JSON | Claude Code conversation log analysis |
+When an agent wants "all function definitions matching `parse` in files that changed this week," it has to run `git log`, parse the output, run `grep` on each file, parse *that* output, and stitch it together. Each step burns tokens on text parsing instead of actual reasoning.
 
-Instead of agents running `cat`, `grep`, `git log`, and other bash commands that produce unstructured text, Source Sextant provides structured, composable SQL macros exposed as MCP tools.
+## What Source Sextant Does
+
+Source Sextant replaces those bash commands with structured, composable SQL — exposed as MCP tools that any agent can call directly. It composes five DuckDB community extensions into a single queryable surface:
+
+| Capability | Replaces | Extension |
+|-----------|----------|-----------|
+| **Source Retrieval** — read lines, ranges, batches across files | `cat`, `head`, `tail`, `sed -n` | [`read_lines`](https://duckdb.org/community_extensions/extensions/read_lines) |
+| **Code Intelligence** — find definitions, calls, imports across 27 languages | `grep -rn "def ..."`, `find -name` | [`sitting_duck`](https://github.com/teaguesterling/sitting_duck) |
+| **Documentation** — read specific markdown sections, extract code examples | reading entire files to find one section | [`duckdb_markdown`](https://github.com/teaguesterling/duckdb_markdown) |
+| **Repository** — query commits, branches, tags, file history | `git log`, `git diff`, `git show` | [`duck_tails`](https://github.com/teaguesterling/duck_tails) |
+| **Conversations** — analyze Claude Code session history, tool usage, token costs | *(nothing — this capability didn't exist)* | DuckDB JSON |
+
+The key advantage is **composability**. Because everything lives in DuckDB, you can join across tiers:
+
+```sql
+-- Find all functions defined in files that changed in the last 3 commits
+SELECT d.name, d.file_path, c.message
+FROM find_definitions('src/**/*.py') d
+JOIN recent_changes(3) c ON d.file_path = c.file_name;
+
+-- Find documented functions that lack code examples in the docs
+SELECT d.name, d.file_path
+FROM find_definitions('src/**/*.py', kind := 'function') d
+LEFT JOIN find_code_examples('docs/**/*.md', 'python') ex
+  ON ex.code LIKE '%' || d.name || '%'
+WHERE ex.code IS NULL;
+```
+
+This kind of cross-cutting query is impossible with separate bash commands.
+
+## How It Works
+
+Source Sextant is a DuckDB init script — not a traditional application. It loads extensions, defines SQL macros, publishes them as MCP tools, and starts a server:
+
+```
+duckdb -init init-source-sextant.sql
+```
+
+Configure it in Claude Code's `settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "source_sextant": {
+      "command": "duckdb",
+      "args": ["-init", "/path/to/init-source-sextant.sql"]
+    }
+  }
+}
+```
+
+The architecture has two layers:
+
+1. **SQL macros** (`sql/<tier>.sql`) — reusable, independently testable DuckDB macros containing all the logic
+2. **Tool publications** (`sql/tools/<tier>.sql`) — thin wrappers that expose macros as MCP tools via `mcp_publish_tool()`
+
+Everything is read-only. Source Sextant retrieves and analyzes — it never modifies files or makes git writes.
+
+## Quick Examples
+
+```sql
+-- Find all Python function definitions matching a pattern
+SELECT * FROM find_definitions('src/**/*.py', '%parse%');
+
+-- Read specific lines with context (great for investigating errors)
+SELECT * FROM read_context('src/parser.py', 42, 5);
+
+-- Get just the "Installation" section from a README
+SELECT * FROM read_doc_section('README.md', 'installation');
+
+-- What changed in src/ in the last 5 commits?
+SELECT * FROM recent_changes(5, '.');
+
+-- Which bash commands does the agent use most, and which ones could Source Sextant replace?
+SELECT * FROM bash_commands() WHERE replaceable_by IS NOT NULL;
+```
 
 ## Status
 
@@ -24,28 +93,6 @@ Alpha. SQL macros, MCP tool publications, and path sandboxing are working.
 - 8 of 11 MCP tools published (code, docs, git tools complete; file tools pending)
 - Conversation analysis macros fully tested (31 tests)
 - See [docs/vision/PRODUCT_SPEC.md](docs/vision/PRODUCT_SPEC.md) for the full specification
-
-## Quick Example
-
-```sql
--- Find all Python function definitions matching a pattern
-SELECT * FROM find_definitions('src/**/*.py', '%parse%');
-
--- Read specific lines with context
-SELECT * FROM read_context('src/parser.py', 42, 5);
-
--- Get the "Installation" section from a README without reading the whole file
-SELECT * FROM read_doc_section('README.md', 'installation');
-
--- What changed in src/ in the last 5 commits?
-SELECT * FROM recent_changes(5, '.');
-
--- Cross-tier composition: definitions in large files
-SELECT d.name, d.file_path, f.line_count
-FROM find_definitions('src/**/*.py') d
-JOIN file_line_count('src/**/*.py') f ON d.file_path = f.file_path
-WHERE f.line_count > 100;
-```
 
 ## Requirements
 
