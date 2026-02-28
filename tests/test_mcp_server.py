@@ -411,6 +411,32 @@ class TestGitBranches:
         assert md_row_count(text) > 0
 
 
+class TestGitShow:
+    def test_returns_file_at_head(self, mcp_server):
+        text = call_tool(mcp_server, "GitShow", {
+            "file": "LICENSE",
+            "rev": "HEAD",
+        })
+        assert md_row_count(text) >= 1
+        assert "LICENSE" in text
+
+    def test_returns_metadata_columns(self, mcp_server):
+        text = call_tool(mcp_server, "GitShow", {
+            "file": "LICENSE",
+            "rev": "HEAD",
+        })
+        for col in ("file_path", "ref", "size_bytes", "content"):
+            assert col in text
+
+    def test_returns_file_at_prior_revision(self, mcp_server):
+        text = call_tool(mcp_server, "GitShow", {
+            "file": "LICENSE",
+            "rev": "HEAD~1",
+        })
+        assert md_row_count(text) >= 1
+        assert "LICENSE" in text
+
+
 # -- Help --
 
 

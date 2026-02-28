@@ -55,3 +55,16 @@ SELECT mcp_publish_tool(
     '["file_path", "from_rev", "to_rev"]',
     'markdown'
 );
+
+SELECT mcp_publish_tool(
+    'GitShow',
+    'Show file content at a specific git revision with metadata (path, ref, size). Replaces `git show rev:path`.',
+    'SELECT * FROM file_at_version(
+        $file,
+        $rev,
+        COALESCE(resolve(NULLIF($path, ''null'')), ''' || getvariable('session_root') || ''')
+    )',
+    '{"file": {"type": "string", "description": "Repository-relative file path (e.g. README.md, sql/repo.sql)"}, "rev": {"type": "string", "description": "Git revision (e.g. HEAD, HEAD~1, main, v1.0, commit hash)"}, "path": {"type": "string", "description": "Repository path (default: project root)"}}',
+    '["file", "rev"]',
+    'markdown'
+);
