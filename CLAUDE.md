@@ -103,7 +103,7 @@ These are hard-won lessons. Don't remove workarounds without verifying the upstr
 
 1. **Table refs validate at macro definition time** — `raw_conversations` must exist before loading `conversations.sql`. Macro-to-macro refs ARE deferred.
 
-2. **sitting_duck#22** — `sitting_duck` defines a `read_lines` table macro that shadows the `read_lines` extension. Fix: `DROP MACRO TABLE IF EXISTS read_lines` after loading sitting_duck.
+2. **sitting_duck#22** — Fixed in DuckDB 1.4.4+. The `DROP MACRO TABLE IF EXISTS read_lines` workaround is no longer needed and now fails (`Cannot drop internal catalog entry`).
 
 3. **sitting_duck#23** — Python import names are empty; use `peek` column instead.
 
@@ -114,6 +114,10 @@ These are hard-won lessons. Don't remove workarounds without verifying the upstr
 6. **`->>` in UNION ALL** — Breaks inside macros. Use `json_extract_string()` instead.
 
 7. **LATERAL UNNEST in macros** — Evaluates before WHERE with mixed-type JSON. Use CTEs to filter first.
+
+8. **`query_table()` Python collision** — DuckDB's `query_table()` uses Python replacement scans, which collide with `import json`. Use `read_json_auto()`/`read_csv_auto()` with `query()` for dynamic dispatch instead.
+
+9. **Table functions in UNION ALL dead branches** — Table functions like `glob()` may execute even in UNION ALL branches filtered by `WHERE false`, especially in the duckdb_mcp execution context. Use `query()` for conditional table function dispatch.
 
 ## Tests
 
@@ -165,11 +169,10 @@ docs/
 2. LOAD sitting_duck
 3. LOAD markdown
 4. LOAD duck_tails
-5. DROP MACRO TABLE IF EXISTS read_lines   (sitting_duck#22)
-6. SET VARIABLE sextant_root = ...
-7. Load sandbox.sql
-8. Load macro files (source, code, docs, repo)
-9. LOAD duckdb_mcp
-10. Load tool publication files
-11. Start MCP server
+5. SET VARIABLE sextant_root = ...
+6. Load sandbox.sql
+7. Load macro files (source, code, docs, repo)
+8. LOAD duckdb_mcp
+9. Load tool publication files
+10. Start MCP server
 ```
