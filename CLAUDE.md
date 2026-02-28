@@ -119,6 +119,8 @@ These are hard-won lessons. Don't remove workarounds without verifying the upstr
 
 9. **Table functions in UNION ALL dead branches** — Table functions like `glob()` may execute even in UNION ALL branches filtered by `WHERE false`, especially in the duckdb_mcp execution context. Use `query()` for conditional table function dispatch.
 
+10. **C++ table functions reject column refs in macros** — `text_diff_lines(r.col)` fails with "does not support lateral join column parameters". Subqueries also rejected. Workaround: reimplement in pure SQL (e.g., `unnest(string_split())` + CASE).
+
 ## Tests
 
 ### Philosophy

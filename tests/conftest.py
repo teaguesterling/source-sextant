@@ -137,6 +137,8 @@ V1_TOOLS = [
     "ChatSearch",
     "ChatToolUsage",
     "ChatDetail",
+    "GitDiffSummary",
+    "GitDiffFile",
 ]
 
 

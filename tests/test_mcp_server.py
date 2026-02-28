@@ -425,6 +425,64 @@ class TestHelp:
         assert md_row_count(text) >= 1
 
 
+class TestGitDiff:
+    def test_summary_returns_changed_files(self, mcp_server):
+        text = call_tool(mcp_server, "GitDiffSummary", {
+            "from_rev": "HEAD~1",
+            "to_rev": "HEAD",
+        })
+        assert md_row_count(text) >= 1
+
+    def test_summary_shows_status(self, mcp_server):
+        text = call_tool(mcp_server, "GitDiffSummary", {
+            "from_rev": "HEAD~1",
+            "to_rev": "HEAD",
+        })
+        # At least one status value should appear
+        assert any(s in text for s in ("added", "deleted", "modified"))
+
+    def test_file_diff_shows_changes(self, mcp_server):
+        # First find a changed file via the summary tool
+        summary = call_tool(mcp_server, "GitDiffSummary", {
+            "from_rev": "HEAD~1",
+            "to_rev": "HEAD",
+        })
+        # Extract first file path from markdown table (3rd line, first column)
+        data_lines = [
+            l for l in summary.strip().split("\n")
+            if l.strip().startswith("|")
+        ][2:]  # skip header + separator
+        assert len(data_lines) > 0
+        file_path = data_lines[0].split("|")[1].strip()
+
+        text = call_tool(mcp_server, "GitDiffFile", {
+            "file_path": file_path,
+            "from_rev": "HEAD~1",
+            "to_rev": "HEAD",
+        })
+        assert md_row_count(text) > 0
+
+    def test_file_diff_has_line_types(self, mcp_server):
+        summary = call_tool(mcp_server, "GitDiffSummary", {
+            "from_rev": "HEAD~1",
+            "to_rev": "HEAD",
+        })
+        data_lines = [
+            l for l in summary.strip().split("\n")
+            if l.strip().startswith("|")
+        ][2:]
+        file_path = data_lines[0].split("|")[1].strip()
+
+        text = call_tool(mcp_server, "GitDiffFile", {
+            "file_path": file_path,
+            "from_rev": "HEAD~1",
+            "to_rev": "HEAD",
+        })
+        assert md_row_count(text) > 0
+        # Verify actual line type values appear in output
+        assert any(t in text for t in ("ADDED", "REMOVED"))
+
+
 # -- Conversations --
 
 
