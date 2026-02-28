@@ -14,6 +14,9 @@
 
 -- Lock down filesystem access (after all .read commands).
 -- session_root is always allowed; extras are appended if set.
+-- NOTE: This block is duplicated in each entry point because profile SQL
+-- must run before lock_configuration. Extract to sql/lockdown.sql if a
+-- third profile is added.
 SET allowed_directories = list_concat(
     [getvariable('session_root')],
     COALESCE(getvariable('extra_dirs'), [])

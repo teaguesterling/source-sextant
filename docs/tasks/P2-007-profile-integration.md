@@ -44,13 +44,15 @@ and provide an analyst variant:
 ### Custom profile convention
 
 Document in profile SQL files (as header comments) the contract a profile
-must satisfy:
+must satisfy (already added in P2-006, review for completeness):
 
 1. Set `memory_limit` (DuckDB setting)
-2. Set `query_timeout_seconds` variable
-3. Set `load_*_tools` variables for each tool category
-4. Set `enable_query_tool` and `enable_execute_tool` variables
-5. Optionally create views or macros that restrict data visibility
+2. Set `mcp_server_options` variable (JSON string passed to `mcp_server_start()`)
+
+The `mcp_server_options` JSON controls built-in duckdb_mcp tools:
+`enable_query_tool`, `enable_describe_tool`, `enable_list_tables_tool`,
+`enable_database_info_tool`, `enable_export_tool`, `enable_execute_tool`,
+and `default_result_format`.
 
 Users create a custom profile by copying `core.sql`, modifying it, and
 pointing a new entry-point init script at it. The profile format is plain

@@ -2,6 +2,8 @@
 --
 -- All structured tools plus raw SQL query access.
 -- Default profile for unrestricted use.
+--
+-- See core.sql for the profile contract documentation.
 
 SET memory_limit = '4GB';
 

@@ -273,6 +273,10 @@ def _list_tools_for_profile(profile):
     duckdb_mcp uses process-global server options, so a profile's tool
     list can only be tested in isolation. This runs _create_mcp_server()
     in a forked subprocess and returns the tool names.
+
+    Note: relies on conftest.py being importable as a regular Python module
+    (not just as a pytest plugin). This works because cwd=PROJECT_ROOT
+    and tests/ is on sys.path in the subprocess.
     """
     import subprocess
     import sys
