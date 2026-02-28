@@ -139,6 +139,7 @@ V1_TOOLS = [
     "ChatDetail",
     "GitDiffSummary",
     "GitDiffFile",
+    "GitShow",
 ]
 
 
