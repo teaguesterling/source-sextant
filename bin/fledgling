@@ -145,6 +145,11 @@ case "$PROFILE" in
     *) die "unknown profile: $PROFILE (expected: core, analyst)" ;;
 esac
 
+case "$TRANSPORT" in
+    stdio|sse) ;;
+    *) die "unknown transport: $TRANSPORT (expected: stdio, sse)" ;;
+esac
+
 INIT_FILE="init/init-fledgling-${PROFILE}.sql"
 [[ -f "$FLEDGLING_HOME/$INIT_FILE" ]] || die "init file not found: $FLEDGLING_HOME/$INIT_FILE"
 
@@ -157,7 +162,7 @@ case "$COMMAND" in
 
         # Build the duckdb command
         cmd=(duckdb
-            -cmd ".cd $FLEDGLING_HOME"
+            -cmd ".cd '$FLEDGLING_HOME'"
             -cmd "SET VARIABLE session_root = '$PROJECT_ROOT'"
             -cmd "SET VARIABLE transport = '$TRANSPORT'"
         )
