@@ -5,6 +5,7 @@ All tests use the fledgling repo itself as test data (dog-fooding).
 
 import json
 import os
+import re
 import pytest
 import duckdb
 
@@ -280,11 +281,12 @@ def json_row_count(text):
     if text == "[]":
         return 0
     # Auto-detect first key from the opening [{"key":
-    import re
     m = re.match(r'\[\{"([^"]+)":', text)
     if not m:
         return 0
     first_key = m.group(1)
+    # Assumes file content won't literally contain the key pattern.
+    # Safe for test data; parse_json_rows() is the robust alternative.
     return text.count('{"' + first_key + '":"')
 
 
