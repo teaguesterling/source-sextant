@@ -1,6 +1,6 @@
 # P3-004: GitTags Tool
 
-**Status:** Not started
+**Status:** Complete
 **Depends on:** P2-004 (git tools), P2-005 (sandbox/resolve)
 **Estimated scope:** Tool publication only — macro already exists
 

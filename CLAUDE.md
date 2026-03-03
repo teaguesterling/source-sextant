@@ -123,6 +123,19 @@ These are hard-won lessons. Don't remove workarounds without verifying the upstr
 
 ## Tests
 
+### Running tests
+
+Use blq MCP tools to run tests — never invoke pytest directly via Bash:
+
+```
+mcp__blq_mcp__run(command="test")                        # all tests
+mcp__blq_mcp__run(command="test", extra=["-k", "pattern"])  # by pattern
+mcp__blq_mcp__run(command="test", extra=["tests/test_code.py"])  # by file
+mcp__blq_mcp__run(command="test-collect")                 # list without running
+mcp__blq_mcp__errors(run_id=N)                            # inspect failures
+mcp__blq_mcp__output(run_id=N, tail=30)                   # view output
+```
+
 ### Philosophy
 
 - Dog-fooding: the repo itself is the primary test data
@@ -153,10 +166,13 @@ These are hard-won lessons. Don't remove workarounds without verifying the upstr
 ## File Organization
 
 ```
-init-fledgling.sql          Default entry point (alias for analyst)
-init-fledgling-analyst.sql  Analyst profile entry point (query enabled)
-init-fledgling-core.sql     Core profile entry point (structured tools only)
-init-fledgling-base.sql     Shared setup (extensions, macros, tools)
+bin/
+  fledgling                 Bash launcher (serve, info subcommands)
+init/
+  init-fledgling.sql        Default entry point (alias for analyst)
+  init-fledgling-analyst.sql  Analyst profile entry point (query enabled)
+  init-fledgling-core.sql   Core profile entry point (structured tools only)
+  init-fledgling-base.sql   Shared setup (extensions, macros, tools)
 sql/
   <tier>.sql                Macro definitions (one file per tier)
   sandbox.sql               resolve() macro + sandbox setup
@@ -177,11 +193,11 @@ docs/
 
 ## Extension load order
 
-Per-profile entry points (e.g. `init-fledgling-analyst.sql`) compose the
+Per-profile entry points (e.g. `init/init-fledgling-analyst.sql`) compose the
 base script with a profile:
 
 ```
-init-fledgling-base.sql:
+init/init-fledgling-base.sql:
   1. LOAD duckdb_mcp                        (before lockdown; duckdb#17136)
   2. LOAD read_lines
   3. LOAD sitting_duck
@@ -192,7 +208,7 @@ init-fledgling-base.sql:
   8. Load macro files (source, code, docs, repo)
   9. Load tool publication files
 
-Per-profile entry point (e.g. init-fledgling-analyst.sql):
+Per-profile entry point (e.g. init/init-fledgling-analyst.sql):
   10. Load profile SQL                      (memory_limit + mcp_server_options)
   11. Filesystem lockdown                   (after all .read commands)
   12. Start MCP server with profile options
@@ -211,14 +227,18 @@ Per-profile entry point (e.g. init-fledgling-analyst.sql):
 <!-- blq:agent-instructions -->
 ## blq - Build Log Query
 
-Run builds and tests via blq MCP tools, not via Bash directly:
-- `mcp__blq_mcp__commands` - list available commands
-- `mcp__blq_mcp__run` - run a registered command (e.g., `run(command="test")`)
-- `mcp__blq_mcp__register_command` - register new commands
-- `mcp__blq_mcp__status` - check current build/test status
-- `mcp__blq_mcp__errors` - view errors from runs
-- `mcp__blq_mcp__info` - detailed run info (supports relative refs like `+1`, `latest`)
-- `mcp__blq_mcp__output` - search/filter captured logs (grep, tail, head, lines)
+**Always use blq MCP tools instead of running pytest/builds via Bash.**
+
+Registered commands (run via `mcp__blq_mcp__run`):
+- `test` — run all tests (`extra=["-v"]` for verbose, `extra=["tests/test_code.py"]` for specific file)
+- `test-match` — run tests by name pattern (args: `{pattern: "..."}`)
+- `test-collect` — list all tests without running
+- `fledgling-tool` — call a Fledgling MCP tool (args: `{tool: "ToolName"}`)
+
+Investigating results:
+- `mcp__blq_mcp__errors` — view errors from a run
+- `mcp__blq_mcp__output` — search/filter captured logs (grep, tail, head, lines)
+- `mcp__blq_mcp__info` — detailed run info (supports relative refs like `+1`, `latest`)
 
 Do NOT use shell pipes or redirects in commands (e.g., `pytest | tail -20`).
 Instead: run the command, then use `output(run_id=N, tail=20)` to filter.

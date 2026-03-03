@@ -1,15 +1,16 @@
--- Fledgling: Core Profile Entry Point
+-- Fledgling: Analyst Profile Entry Point
 --
--- Structured tools only. No raw SQL query access.
+-- All structured tools plus raw SQL query access.
+-- Default profile for unrestricted use.
 --
 -- Usage:
---   duckdb -init /path/to/fledgling/init-fledgling-core.sql
+--   duckdb -init init/init-fledgling-analyst.sql
 
 -- Shared setup: extensions, sandbox, macros, tool publications
-.read init-fledgling-base.sql
+.read init/init-fledgling-base.sql
 
--- Core profile: restricted resource limits, no built-in query tools
-.read sql/profiles/core.sql
+-- Analyst profile: higher resource limits, built-in query tools enabled
+.read sql/profiles/analyst.sql
 
 -- Lock down filesystem access (after all .read commands).
 -- session_root is always allowed; extras are appended if set.
@@ -29,4 +30,4 @@ SET lock_configuration = true;
 
 -- Restore output and start server
 .output stdout
-SELECT mcp_server_start('stdio', getvariable('mcp_server_options'));
+SELECT mcp_server_start(COALESCE(getvariable('transport'), 'stdio'), getvariable('mcp_server_options'));

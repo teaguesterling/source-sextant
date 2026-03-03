@@ -57,20 +57,26 @@ SELECT * FROM recent_changes(10);
 
 ## MCP Server Setup
 
-!!! note
-    8 of 11 MCP tools are published and tested (code, docs, git). The `init-fledgling.sql` entry point and example config are still pending (P2-005).
-
-Once the init script is ready, add to your Claude Code settings:
+Add to your Claude Code settings:
 
 ```json
 {
   "mcpServers": {
     "fledgling": {
-      "command": "duckdb",
-      "args": ["-init", "/path/to/fledgling/init-fledgling.sql"]
+      "command": "/path/to/fledgling/bin/fledgling",
+      "args": ["serve", "--profile", "analyst"],
+      "env": {
+        "FLEDGLING_ROOT": "/path/to/your/project"
+      }
     }
   }
 }
+```
+
+Or invoke DuckDB directly (CWD must be the fledgling directory):
+
+```bash
+duckdb -init init/init-fledgling.sql
 ```
 
 ## Running Tests
@@ -79,5 +85,3 @@ Once the init script is ready, add to your Claude Code settings:
 pip install duckdb pytest
 pytest
 ```
-
-All 151 tests should pass across 5 macro tiers, MCP integration, and sandbox tests (13 are expected failures until P2-001 file tools are implemented).
