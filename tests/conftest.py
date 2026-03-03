@@ -5,6 +5,7 @@ All tests use the fledgling repo itself as test data (dog-fooding).
 
 import json
 import os
+import re
 import pytest
 import duckdb
 
@@ -207,6 +208,87 @@ def md_row_count(text):
     """Count data rows in a markdown table (excludes header + separator)."""
     lines = [l for l in text.strip().split("\n") if l.strip().startswith("|")]
     return max(0, len(lines) - 2)
+
+
+def parse_json_rows(text, keys):
+    """Parse duckdb_mcp JSON array output using known column structure.
+
+    Works around duckdb_mcp#52 (unescaped double quotes in string values)
+    by splitting on known key-name delimiters rather than JSON string parsing.
+
+    Args:
+        text: JSON array string from duckdb_mcp tool output
+        keys: Ordered list of column names matching the result schema
+
+    Returns:
+        List of dicts mapping column names to string values
+    """
+    text = text.strip()
+    if text == "[]":
+        return []
+
+    inner = text[1:-1]  # Strip outer [ and ]
+    first_key = keys[0]
+
+    # Split into individual objects using the first key as boundary.
+    # Separator between objects: },{"first_key":"
+    obj_sep = '},{"' + first_key + '":"'
+    parts = inner.split(obj_sep)
+
+    rows = []
+    for i, part in enumerate(parts):
+        # Reconstruct complete object text for each part:
+        # - part[0] is missing its closing }
+        # - part[i>0] is missing its opening {"first_key":"
+        if i == 0:
+            part = part + "}"
+        else:
+            part = '{"' + first_key + '":"' + part
+
+        # Strip outer { }
+        obj = part[1:-1]
+
+        row = {}
+        for j, key in enumerate(keys):
+            key_pat = '"' + key + '":"'
+            idx = obj.find(key_pat)
+            if idx == -1:
+                row[key] = None
+                continue
+            val_start = idx + len(key_pat)
+
+            if j < len(keys) - 1:
+                # Value runs until the next key's delimiter: ","next_key":"
+                next_pat = '","' + keys[j + 1] + '":"'
+                val_end = obj.find(next_pat, val_start)
+                row[key] = obj[val_start:val_end] if val_end != -1 else obj[val_start:]
+            else:
+                # Last key: value runs to end of object, minus closing "
+                row[key] = obj[val_start:-1]
+
+        rows.append(row)
+
+    return rows
+
+
+def json_row_count(text):
+    """Count rows in a JSON array result from duckdb_mcp.
+
+    Uses the first key name as a structural anchor to count objects,
+    rather than json.loads() (broken by duckdb_mcp#52) or counting
+    },{ separators (fragile if content contains that pattern).
+    """
+    text = text.strip()
+    if text == "[]":
+        return 0
+    # Auto-detect first key from the opening [{"key":
+    m = re.match(r'\[\{"([^"]+)":', text)
+    if not m:
+        return 0
+    first_key = m.group(1)
+    # Assumes file content won't literally contain the key pattern.
+    # Safe for test data; parse_json_rows() is the robust alternative.
+    return text.count('{"' + first_key + '":"')
 
 
 # -- MCP server fixtures --
