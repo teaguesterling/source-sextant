@@ -2,7 +2,7 @@
   "mcpServers": {
     "fledgling": {
       "command": "sh",
-      "args": ["-c", "exec duckdb -init init-fledgling.sql"],
+      "args": ["-c", "exec duckdb -init init/init-fledgling.sql"],
       "cwd": "."
     },
     "blq_mcp": {

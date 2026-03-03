@@ -1,6 +1,6 @@
 # P3-002: GitStatus Tool
 
-**Status:** Not started
+**Status:** Complete
 **Depends on:** P2-004 (git tools), P2-005 (sandbox/resolve)
 **Estimated scope:** New macro + tool publication. Requires investigation — duck_tails has no `git_status` function.
 

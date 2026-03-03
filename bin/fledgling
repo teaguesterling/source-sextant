@@ -145,7 +145,7 @@ case "$PROFILE" in
     *) die "unknown profile: $PROFILE (expected: core, analyst)" ;;
 esac
 
-INIT_FILE="init-fledgling-${PROFILE}.sql"
+INIT_FILE="init/init-fledgling-${PROFILE}.sql"
 [[ -f "$FLEDGLING_HOME/$INIT_FILE" ]] || die "init file not found: $FLEDGLING_HOME/$INIT_FILE"
 
 # ── Execute command ─────────────────────────────────────────────────
@@ -207,8 +207,8 @@ case "$COMMAND" in
 
         # SQL files
         sql_count=$(find "$FLEDGLING_HOME/sql" -name '*.sql' 2>/dev/null | wc -l)
-        init_count=$(find "$FLEDGLING_HOME" -maxdepth 1 -name 'init-*.sql' 2>/dev/null | wc -l)
-        echo "SQL files:       $sql_count (sql/) + $init_count (init)"
+        init_count=$(find "$FLEDGLING_HOME/init" -name '*.sql' 2>/dev/null | wc -l)
+        echo "SQL files:       $sql_count (sql/) + $init_count (init/)"
 
         # Project files (if in a git repo)
         if git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
