@@ -1,8 +1,8 @@
 # P3-006: Packaging and Distribution
 
-**Status:** Not started
-**Depends on:** P2-007 (profile integration)
-**Estimated scope:** New files (CLI wrapper, config parser, packaging metadata)
+**Status:** Complete
+**Depends on:** P2-006 (security profiles)
+**Estimated scope:** New files (CLI launcher, config support)
 
 ## Motivation
 
@@ -16,75 +16,74 @@ and Claude Code integration, but has friction for distribution:
   editing SQL files
 - No `--help`, no discoverability
 
-A thin CLI wrapper and config file support would make Fledgling installable
-and runnable without understanding the DuckDB internals.
+A thin CLI wrapper and config file support would make Fledgling runnable
+without understanding the DuckDB internals.
 
-## Design
+## Implementation
 
-### CLI (`fledgling` command)
+### Approach: Single bash script
 
-A small Python or shell script that:
-1. Resolves the project root (CWD or `--root` flag)
-2. Reads config file if present (`fledgling.yaml` or `.fledgling.yaml`)
-3. Selects profile (`--profile core|analyst`, default from config or `core`)
-4. Builds the correct `duckdb -init` invocation
-5. Passes through to DuckDB
+The original design proposed Python CLI with `click`, `pyyaml`, and
+`pyproject.toml` entry points. During planning, this was simplified to a
+single bash script — no Python dependencies, no pip packaging. The CLI is
+a launcher, not a runtime. All logic stays in SQL.
 
+### `bin/fledgling`
+
+~120-line bash script with two subcommands:
+
+- **`fledgling serve`** — Builds and `exec`s the right `duckdb -init`
+  command. Uses `-cmd` flags for variable injection (`.cd`, `SET VARIABLE`)
+  before `-init` loads the profile entry point.
+
+- **`fledgling info`** — Prints diagnostic info (paths, config, duckdb
+  version, file counts) without starting DuckDB as a server.
+
+### Config file (`.fledgling`)
+
+Shell-sourceable key=value file in the project root. No parser needed —
+just `source` it.
+
+```bash
+# .fledgling (or fledgling.conf)
+FLEDGLING_PROFILE=core
+FLEDGLING_TRANSPORT=stdio
+# FLEDGLING_EXTRA_DIRS="['/data/shared']"
 ```
-fledgling serve [--root PATH] [--profile PROFILE] [--transport stdio|sse]
-fledgling info [--root PATH]      # Show what would be indexed (file counts, etc.)
+
+### Precedence
+
+CLI flags > environment variables > config file > defaults.
+
+Env var values are saved before sourcing the config to prevent config from
+clobbering them.
+
+### SQL changes
+
+Transport is parameterized in both profile entry points:
+
+```sql
+SELECT mcp_server_start(COALESCE(getvariable('transport'), 'stdio'), getvariable('mcp_server_options'));
 ```
 
-This is intentionally thin — Fledgling is NOT a Python application. The CLI
-is a launcher, not a runtime. All logic stays in SQL.
-
-### Config file
-
-```yaml
-# fledgling.yaml (or .fledgling.yaml in project root)
-profile: core                     # Default profile
-exclude_patterns:                 # Patterns to exclude (beyond .gitignore)
-  - "*.pyc"
-  - "__pycache__"
-  - "node_modules"
-extra_dirs: []                    # Additional allowed directories
-transport: stdio                  # stdio or sse
-```
-
-Config values are injected as DuckDB variables before the init script runs.
-
-### Packaging
-
-- `pyproject.toml` with `[project.scripts]` entry point for `fledgling`
-- Depends on: `duckdb` (plus extensions, which DuckDB auto-installs)
-- Optionally: `pyyaml` for config parsing, `click` for CLI
-
-### SSE transport
-
-`mcp_server_start('sse', ...)` is already supported by `duckdb_mcp`. The
-CLI just needs to pass the transport choice through. Port configuration
-via `--port` flag or config file.
-
-## Tools
-
-No new MCP tools. This task is about the distribution layer around the
-existing tools.
+Backward compatible — defaults to `stdio` when no variable is set.
 
 ## Files
 
 | File | Action | Description |
 |------|--------|-------------|
-| `fledgling/__init__.py` | Create | Package marker |
-| `fledgling/cli.py` | Create | CLI entry point |
-| `fledgling/config.py` | Create | Config file parser |
-| `pyproject.toml` | Create | Package metadata + entry points |
-| `init-fledgling.sql` | Update | Accept injected variables from CLI |
+| `bin/fledgling` | Create | Bash launcher script |
+| `init-fledgling-analyst.sql` | Update | Parameterize transport (1 line) |
+| `init-fledgling-core.sql` | Update | Parameterize transport (1 line) |
+| `config/claude-code.example.json` | Update | Show launcher usage |
 
 ## Acceptance Criteria
 
-- `fledgling serve` starts the MCP server (stdio transport)
-- `fledgling serve --profile analyst` starts with analyst profile
-- `fledgling info` prints file count and detected languages for CWD
-- Config file is read if present, CLI flags override config values
-- `pip install -e .` makes the `fledgling` command available
-- Existing `duckdb -init` workflow continues to work unchanged
+- [x] `fledgling serve` starts the MCP server (stdio transport)
+- [x] `fledgling serve --profile analyst` starts with analyst profile
+- [x] `fledgling info` prints diagnostics (paths, config, duckdb, file counts)
+- [x] Config file is read if present, CLI flags override config values
+- [x] Env vars override config, CLI flags override env vars
+- [x] Profile validation rejects unknown profiles
+- [x] Existing `duckdb -init` workflow continues to work unchanged
+- [x] Existing test suite passes

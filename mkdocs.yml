@@ -50,5 +50,3 @@ nav:
       - Product Spec: vision/PRODUCT_SPEC.md
       - Conversation Analysis: vision/CONVERSATION_ANALYSIS.md
       - Schema Design: vision/CONVERSATION_SCHEMA_DESIGN.md
-  - Development:
-      - Next Steps: planning/NEXT_STEPS.md

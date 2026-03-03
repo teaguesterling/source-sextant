@@ -4,7 +4,7 @@
 -- See init-fledgling-core.sql for the restricted profile.
 --
 -- Usage:
---   duckdb -init /path/to/fledgling/init-fledgling.sql
+--   duckdb -init init/init-fledgling.sql
 --
 -- The MCP client must set cwd to the fledgling directory so
 -- .read paths resolve correctly (they are relative to CWD, not to
@@ -12,4 +12,4 @@
 -- via the FLEDGLING_ROOT environment variable, or by
 -- pre-setting the session_root DuckDB variable.
 
-.read init-fledgling-analyst.sql
+.read init/init-fledgling-analyst.sql
