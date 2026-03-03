@@ -4,7 +4,7 @@
       "command": "sh",
       "args": [
         "-c",
-        "exec duckdb -init init-fledgling.sql"
+        "exec duckdb -init init/init-fledgling.sql"
       ],
       "cwd": "."
     },
