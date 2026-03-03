@@ -1,6 +1,6 @@
 # P3-001: GitDiff Tool
 
-**Status:** Implemented
+**Status:** Complete
 **Depends on:** P2-004 (git tools), P2-005 (sandbox/resolve)
 **Estimated scope:** New macro + tool publication
 

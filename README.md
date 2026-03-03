@@ -100,43 +100,32 @@ The purpose-built tools get your agent productive. The SQL layer is there when i
 
 ## How It Works
 
-Fledgling is a DuckDB init script. No Python runtime, no Node, no build step. It loads extensions, defines SQL macros, publishes them as MCP tools, locks down the sandbox, and starts an MCP server:
-
-```
-duckdb -init init-fledgling.sql
-```
+Fledgling is a DuckDB init script. No Python runtime, no Node, no build step. It loads extensions, defines SQL macros, publishes them as MCP tools, locks down the sandbox, and starts an MCP server.
 
 Everything runs read-only inside a filesystem sandbox restricted to your project directory. The agent gets structured access to your code — it can't write files, make network calls, or escape the sandbox.
 
 ## Configuration
 
-Add Fledgling to Claude Code's `settings.json`:
+Using the launcher (recommended):
 
 ```json
 {
   "mcpServers": {
     "fledgling": {
-      "command": "duckdb",
-      "args": ["-init", "/path/to/init-fledgling.sql"]
-    }
-  }
-}
-```
-
-Or set a custom project root:
-
-```json
-{
-  "mcpServers": {
-    "fledgling": {
-      "command": "duckdb",
-      "args": ["-init", "/path/to/init-fledgling.sql"],
+      "command": "/path/to/fledgling/bin/fledgling",
+      "args": ["serve", "--profile", "analyst"],
       "env": {
         "FLEDGLING_ROOT": "/path/to/your/project"
       }
     }
   }
 }
+```
+
+Or invoke DuckDB directly:
+
+```bash
+duckdb -init init/init-fledgling.sql
 ```
 
 ## Status

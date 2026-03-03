@@ -1,5 +1,9 @@
 # Fledgling: Next Steps
 
+> **Historical snapshot** — This file was a planning document from early
+> development. It has not been maintained since Feb 2026. See
+> `docs/tasks/P*-*.md` for current task status.
+
 **Last session**: 2026-02-26 (afternoon)
 **State**: 138 passing tests (13 expected failures pending P2-001), MCP tools published for code/docs/git
 

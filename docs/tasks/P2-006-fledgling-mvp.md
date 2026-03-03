@@ -1,6 +1,6 @@
 # P2-006: Security Profiles — Tool Allowlisting and Access Control
 
-**Status:** Implemented
+**Status:** Complete
 **Depends on:** P2-005 (init script, sandbox)
 **Estimated scope:** New SQL files + init script update + tests
 
