@@ -9,7 +9,7 @@
 
 SELECT mcp_publish_tool(
     'GitChanges',
-    'Recent commit history. Replaces `git log --oneline`.',
+    '[Prefer jetsam log] Recent commit history. Replaces `git log --oneline`.',
     'SELECT hash, author, date, split_part(message, chr(10), 1) AS message
      FROM recent_changes(
         COALESCE(TRY_CAST(NULLIF($count, ''null'') AS INT), 10),
@@ -22,7 +22,7 @@ SELECT mcp_publish_tool(
 
 SELECT mcp_publish_tool(
     'GitBranches',
-    'List all branches with current branch marked.',
+    '[Prefer jetsam status] List all branches with current branch marked.',
     'SELECT * FROM branch_list(''' || getvariable('session_root') || ''')',
     '{}',
     '[]',
@@ -31,7 +31,7 @@ SELECT mcp_publish_tool(
 
 SELECT mcp_publish_tool(
     'GitDiffSummary',
-    'File-level summary of changes between two git revisions. Shows added, deleted, and modified files with sizes.',
+    'File-level summary of changes between two git revisions. Shows added, deleted, and modified files with sizes. For function-level analysis, use StructuralDiff or ChangedFunctionSummary.',
     'SELECT * FROM file_changes(
         $from_rev,
         $to_rev,
@@ -53,7 +53,7 @@ SELECT mcp_publish_tool(
 
 SELECT mcp_publish_tool(
     'GitDiffFile',
-    'Line-level unified diff for a specific file between two git revisions. Shows additions, removals, and context lines.',
+    '[Prefer jetsam diff] Line-level unified diff for a specific file between two git revisions. Shows additions, removals, and context lines.',
     'SELECT * FROM file_diff(
         $file_path,
         $from_rev,
@@ -80,7 +80,7 @@ SELECT mcp_publish_tool(
 
 SELECT mcp_publish_tool(
     'GitStatus',
-    'Working tree status: untracked and deleted files compared to HEAD. Does not detect content modifications — use GitDiffSummary for revision diffs. Gitignored files may appear as untracked.',
+    '[Prefer jetsam status] Working tree status: untracked and deleted files compared to HEAD. Does not detect content modifications — use GitDiffSummary for revision diffs. Gitignored files may appear as untracked.',
     'SELECT * FROM working_tree_status(''' || getvariable('session_root') || ''')',
     '{}',
     '[]',

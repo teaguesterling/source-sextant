@@ -132,7 +132,7 @@ def structural_macros(con):
     return con
 
 
-# The 22 V1 custom tools that should be published in all profiles
+# The 27 V1 custom tools that should be published in all profiles
 V1_TOOLS = [
     "ListFiles",
     "ProjectOverview",
@@ -142,6 +142,9 @@ V1_TOOLS = [
     "FindCalls",
     "FindImports",
     "CodeStructure",
+    "ComplexityHotspots",
+    "FunctionCallers",
+    "ModuleDependencies",
     "MDOutline",
     "MDSection",
     "GitChanges",
@@ -156,6 +159,8 @@ V1_TOOLS = [
     "GitDiffFile",
     "GitShow",
     "GitStatus",
+    "StructuralDiff",
+    "ChangedFunctionSummary",
 ]
 
 
@@ -348,6 +353,7 @@ def _create_mcp_server(profile, conv_jsonl_path=None):
     load_sql(con, "code.sql")
     load_sql(con, "docs.sql")
     load_sql(con, "repo.sql")
+    load_sql(con, "structural.sql")
     # Conversation data
     if conv_jsonl_path:
         con.execute(f"""
@@ -379,6 +385,7 @@ def _create_mcp_server(profile, conv_jsonl_path=None):
     con.execute("LOAD duckdb_mcp")
     for tool_file in ["tools/files.sql", "tools/code.sql",
                       "tools/docs.sql", "tools/git.sql",
+                      "tools/structural.sql",
                       "tools/conversations.sql",
                       "tools/help.sql"]:
         try:

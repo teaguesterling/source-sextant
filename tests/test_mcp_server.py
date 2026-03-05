@@ -222,6 +222,39 @@ class TestCodeStructure:
         assert md_row_count(text) > 0
 
 
+class TestComplexityHotspots:
+    def test_returns_results(self, mcp_server):
+        text = call_tool(mcp_server, "ComplexityHotspots", {
+            "file_pattern": CONFTEST_PATH,
+        })
+        assert md_row_count(text) > 0
+
+    def test_limit_parameter(self, mcp_server):
+        text = call_tool(mcp_server, "ComplexityHotspots", {
+            "file_pattern": CONFTEST_PATH,
+            "limit": "3",
+        })
+        assert md_row_count(text) == 3
+
+
+class TestFunctionCallers:
+    def test_finds_callers(self, mcp_server):
+        text = call_tool(mcp_server, "FunctionCallers", {
+            "file_pattern": CONFTEST_PATH,
+            "func_name": "load_sql",
+        })
+        assert md_row_count(text) > 0
+
+
+class TestModuleDependencies:
+    def test_no_match_returns_empty(self, mcp_server):
+        text = call_tool(mcp_server, "ModuleDependencies", {
+            "file_pattern": CONFTEST_PATH,
+            "package_prefix": "nonexistent_pkg",
+        })
+        assert md_row_count(text) == 0
+
+
 # -- Code: Multi-language (sitting_duck test data) --
 
 _skip_no_data = pytest.mark.skipif(
@@ -549,6 +582,59 @@ class TestGitDiff:
         # Verify actual line type values appear in parsed rows
         line_types = {row["line_type"] for row in rows}
         assert line_types & {"ADDED", "REMOVED"}
+
+
+# -- Structural Analysis --
+
+
+class TestStructuralDiffTool:
+    """MCP tool tests for StructuralDiff.
+
+    Blocked on sitting_duck#48: read_ast ignores @rev in git:// URIs.
+    Tests are xfail until the upstream fix lands.
+    """
+
+    @pytest.mark.xfail(
+        reason="sitting_duck#48: read_ast ignores @rev in git:// URIs",
+        strict=True,
+    )
+    def test_returns_changed_definitions(self, mcp_server):
+        text = call_tool(mcp_server, "StructuralDiff", {
+            "file": "tests/conftest.py",
+            "from_rev": "HEAD~15",
+            "to_rev": "HEAD",
+        })
+        assert md_row_count(text) > 0
+
+    def test_result_columns(self, mcp_server):
+        text = call_tool(mcp_server, "StructuralDiff", {
+            "file": "tests/conftest.py",
+            "from_rev": "HEAD~15",
+            "to_rev": "HEAD",
+        })
+        assert "name" in text
+        assert "change" in text
+        assert "complexity_delta" in text
+
+
+class TestChangedFunctionSummaryTool:
+    def test_returns_functions(self, mcp_server):
+        text = call_tool(mcp_server, "ChangedFunctionSummary", {
+            "from_rev": "HEAD~15",
+            "to_rev": "HEAD",
+            "file_pattern": "tests/**/*.py",
+        })
+        assert md_row_count(text) > 0
+
+    def test_columns(self, mcp_server):
+        text = call_tool(mcp_server, "ChangedFunctionSummary", {
+            "from_rev": "HEAD~15",
+            "to_rev": "HEAD",
+            "file_pattern": "tests/**/*.py",
+        })
+        assert "file_path" in text
+        assert "complexity" in text
+        assert "change_status" in text
 
 
 # -- Conversations --
