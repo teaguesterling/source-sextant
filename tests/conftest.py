@@ -115,8 +115,20 @@ def all_macros(con):
     load_sql(con, "code.sql")
     load_sql(con, "docs.sql")
     load_sql(con, "repo.sql")
+    load_sql(con, "structural.sql")
     materialize_help(con)
     load_sql(con, "help.sql")
+    return con
+
+
+@pytest.fixture
+def structural_macros(con):
+    """Connection with sitting_duck + duck_tails + structural macros."""
+    con.execute("LOAD sitting_duck")
+    con.execute("LOAD duck_tails")
+    load_sql(con, "code.sql")
+    load_sql(con, "repo.sql")
+    load_sql(con, "structural.sql")
     return con
 
 

@@ -45,6 +45,7 @@ SET VARIABLE conversations_root = COALESCE(
 .read sql/code.sql
 .read sql/docs.sql
 .read sql/repo.sql
+.read sql/structural.sql
 
 -- Bootstrap raw_conversations table (must exist before conversations.sql loads;
 -- DuckDB validates table refs at macro definition time).

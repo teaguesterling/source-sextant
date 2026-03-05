@@ -72,3 +72,4 @@ CREATE OR REPLACE MACRO code_structure(file_pattern) AS TABLE
     WHERE is_definition(semantic_type)
       AND depth <= 2
     ORDER BY file_path, start_line;
+
