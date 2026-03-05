@@ -85,7 +85,8 @@ CREATE OR REPLACE MACRO list_files(pattern, commit := NULL) AS TABLE
 
 -- project_overview: Summarize project contents by file type.
 -- Groups files by extension and maps to language names, giving a quick
--- overview of what a project contains. Filters out .git directory contents.
+-- overview of what a project contains. Filters out .git, .venv,
+-- node_modules, __pycache__, and other dependency/build directories.
 --
 -- Examples:
 --   SELECT * FROM project_overview('/path/to/project');
@@ -132,6 +133,17 @@ CREATE OR REPLACE MACRO project_overview(root := '.') AS TABLE
             lower(regexp_extract(file_path, '\.([^./]+)$', 1)) AS extension
         FROM list_files(rtrim(root, '/') || '/**/*')
         WHERE file_path NOT LIKE '%/.git/%'
+          AND file_path NOT LIKE '%/.venv/%'
+          AND file_path NOT LIKE '%/venv/%'
+          AND file_path NOT LIKE '%/node_modules/%'
+          AND file_path NOT LIKE '%/__pycache__/%'
+          AND file_path NOT LIKE '%/.mypy_cache/%'
+          AND file_path NOT LIKE '%/.pytest_cache/%'
+          AND file_path NOT LIKE '%/.tox/%'
+          AND file_path NOT LIKE '%/dist/%'
+          AND file_path NOT LIKE '%/build/%'
+          AND file_path NOT LIKE '%/.eggs/%'
+          AND file_path NOT LIKE '%/*.egg-info/%'
     )
     GROUP BY ALL
     ORDER BY file_count DESC;
