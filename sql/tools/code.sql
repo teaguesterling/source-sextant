@@ -25,7 +25,7 @@ SELECT mcp_publish_tool(
 
 SELECT mcp_publish_tool(
     'CodeStructure',
-    'Top-level structural overview of source files: definitions with line counts. Shows what is defined in each file without implementation details.',
+    'Top-level structural overview of source files: definitions with line counts. Good first step for unfamiliar code. For deeper analysis, use complexity_hotspots() and module_dependencies() via the query tool.',
     'SELECT * FROM code_structure(
         _resolve($file_pattern)
     )',

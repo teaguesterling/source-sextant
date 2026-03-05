@@ -26,7 +26,7 @@ FindDefinitions(file_pattern="src/**/*.py", name_pattern="parse_config%")
 | src/legacy/config.py | parse_config | function | 18         | 31       | def parse_config(raw: dict) -> LegacyConfig                  |
 ```
 
-No text parsing. The agent gets the file, the line range, the kind, and the full signature in one call across 27 languages.
+No text parsing. The agent gets the file, the line range, the kind, and the full signature in one call across 30 languages.
 
 **Read code with context**
 
@@ -42,19 +42,19 @@ ReadLines(file_path="src/parser.py", lines="42", ctx="5")
 
 Returns numbered lines centered on line 42 with 5 lines of context. No counting, no off-by-one errors.
 
-**Check recent commits**
+**Compose queries across domains**
 
-Before — git log, then git show, then parse both:
+Before — shell pipelines, string parsing, manual correlation:
 ```
-git log --oneline -10
-```
-
-After — the agent calls `GitChanges`:
-```
-GitChanges(count="10")
+git diff --name-only HEAD~3 HEAD | while read f; do grep -c 'if\|elif\|for\|while' "$f"; done
 ```
 
-Returns structured rows with hash, author, date, and message — ready to reason about, not parse.
+After — the agent writes one SQL query via the `query` tool:
+```sql
+SELECT * FROM changed_function_summary('HEAD~3', 'HEAD', 'src/**/*.py')
+```
+
+Returns functions in recently changed files ranked by cyclomatic complexity. Code analysis + git history in one call.
 
 **Find a markdown section**
 
@@ -72,23 +72,23 @@ Returns just the matched section. No wasted tokens on the rest of the document.
 
 ## What's Included
 
-Fledgling publishes these MCP tools out of the box:
+Fledgling publishes 11 MCP tools:
 
-| MCP Tool | What it does | Replaces |
-|----------|-------------|----------|
-| `FindDefinitions` | Find function, class, and variable definitions across 27 languages | `grep -rn "def ..."` |
-| `FindCalls` | Find where functions are called | `grep` for call sites |
-| `FindImports` | Find import/include/require statements | `grep` for imports |
-| `CodeStructure` | Top-level overview of definitions in a file or directory | reading whole files |
-| `ListFiles` | List files by glob pattern or git revision | `find`, `ls`, `git ls-files` |
-| `ReadLines` | Read file lines with optional range, context, and filtering | `cat`, `head`, `tail`, `sed -n` |
-| `ReadAsTable` | Preview CSV/JSON files as structured tables | `cat data.csv \| head` |
-| `MDOutline` | Get the heading structure of a markdown document | scanning the whole file |
-| `MDSection` | Extract a specific section by ID (use MDOutline to find IDs) | reading the whole file |
-| `GitChanges` | Recent commit history | `git log` |
-| `GitBranches` | List branches with current branch marked | `git branch` |
+| MCP Tool | What it does |
+|----------|-------------|
+| `ReadLines` | Read file lines with range, context, and filtering — replaces cat/head/tail |
+| `FindDefinitions` | AST-based search for functions, classes, variables across 30 languages |
+| `CodeStructure` | Top-level overview of definitions with line counts |
+| `MDSection` | Read a specific markdown section by ID |
+| `GitDiffSummary` | File-level change summary between revisions |
+| `GitShow` | File content at a specific git revision |
+| `Help` | Skill guide with macro catalog, workflows, and examples |
+| `ChatSessions` | Browse Claude Code conversation sessions |
+| `ChatSearch` | Full-text search across conversation messages |
+| `ChatToolUsage` | Tool usage patterns across sessions |
+| `ChatDetail` | Deep view of a single session |
 
-Every tool returns structured markdown tables. No text parsing, no token waste.
+Plus 17 query-only macros available via the SQL `query` tool — `complexity_hotspots`, `function_callers`, `module_dependencies`, `structural_diff`, `list_files`, `doc_outline`, and more. These are composable: join code structure with git history, filter by complexity, correlate across domains.
 
 ### The quiet part
 
@@ -130,10 +130,9 @@ duckdb -init init/init-fledgling.sql
 
 ## Status
 
-Alpha. All 11 MCP tools published and working.
+Alpha. 11 MCP tools + 17 query-only macros, all tested.
 
-- 151 tests across 5 macro tiers + MCP integration + sandbox
-- Conversation analysis macros tested separately (31 tests, not loaded by default)
+- 222 tests across 6 macro tiers + MCP integration + sandbox + profiles
 - See [docs/vision/PRODUCT_SPEC.md](docs/vision/PRODUCT_SPEC.md) for the full specification
 
 ## Requirements

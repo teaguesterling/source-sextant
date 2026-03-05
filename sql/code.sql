@@ -19,6 +19,7 @@ CREATE OR REPLACE MACRO find_definitions(file_pattern, name_pattern := '%') AS T
         peek AS signature
     FROM read_ast(file_pattern)
     WHERE is_definition(semantic_type)
+      AND name != ''
       AND name LIKE name_pattern
     ORDER BY file_path, start_line;
 
@@ -70,6 +71,7 @@ CREATE OR REPLACE MACRO code_structure(file_pattern) AS TABLE
         end_line - start_line + 1 AS line_count
     FROM read_ast(file_pattern)
     WHERE is_definition(semantic_type)
+      AND name != ''
       AND depth <= 2
     ORDER BY file_path, start_line;
 
