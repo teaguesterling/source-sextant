@@ -132,7 +132,7 @@ duckdb -init init/init-fledgling.sql
 
 Alpha. 11 MCP tools + 17 query-only macros, all tested.
 
-- 222 tests across 6 macro tiers + MCP integration + sandbox + profiles
+- 223 tests across 6 macro tiers + MCP integration + sandbox + profiles
 - See [docs/vision/PRODUCT_SPEC.md](docs/vision/PRODUCT_SPEC.md) for the full specification
 
 ## Requirements

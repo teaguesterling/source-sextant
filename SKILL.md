@@ -284,6 +284,16 @@ Use `ast_supported_languages()` via the `query` tool to check the live list of l
 - Git mode paths are always repo-relative
 - The sandbox restricts filesystem access to the project directory; use dedicated tools instead of raw SQL for file operations
 
+### Discovering Macro Schemas
+
+Use the `describe` tool to inspect what columns a macro returns:
+
+```
+describe(query="SELECT * FROM complexity_hotspots('test', 1)")
+```
+
+This reveals column names and types, making it easier to compose macros via joins.
+
 ### Token Efficiency
 
 - Use `CodeStructure` first to understand what's in a file before reading it
