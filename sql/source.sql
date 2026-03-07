@@ -17,9 +17,13 @@
 --   SELECT * FROM read_source('src/main.py', '42 +/-5');
 --   SELECT * FROM read_source('src/main.py', match := 'import');
 CREATE OR REPLACE MACRO read_source(file_path, lines := NULL, ctx := 0, match := NULL) AS TABLE
+    -- Guard: raise an error for nonexistent files so agents don't confuse
+    -- "missing" with "empty". Skipped for git:// URIs (duck_tails paths)
+    -- and adds one glob() stat call per invocation.
     WITH _file_guard AS (
         SELECT CASE
-            WHEN (SELECT count(*) FROM glob(file_path)) = 0
+            WHEN file_path NOT LIKE 'git://%'
+                AND (SELECT count(*) FROM glob(file_path)) = 0
             THEN error('File not found: ' || file_path)
             ELSE 0
         END AS _check
@@ -58,11 +62,20 @@ CREATE OR REPLACE MACRO read_source_batch(file_pattern, lines := NULL, ctx := 0)
 --   SELECT * FROM read_context('src/main.py', 42);
 --   SELECT * FROM read_context('src/main.py', 42, 10);
 CREATE OR REPLACE MACRO read_context(file_path, center_line, ctx := 5) AS TABLE
+    WITH _file_guard AS (
+        SELECT CASE
+            WHEN file_path NOT LIKE 'git://%'
+                AND (SELECT count(*) FROM glob(file_path)) = 0
+            THEN error('File not found: ' || file_path)
+            ELSE 0
+        END AS _check
+    )
     SELECT
         line_number,
         content,
         line_number = center_line AS is_center
-    FROM read_lines(file_path, center_line, context := ctx);
+    FROM read_lines(file_path, center_line, context := ctx)
+    WHERE (SELECT _check FROM _file_guard) = 0;
 
 -- file_line_count: Get line counts for files matching a pattern.
 --

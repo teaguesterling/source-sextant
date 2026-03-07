@@ -58,6 +58,13 @@ class TestReadSource:
                 "SELECT * FROM read_source('this-file-does-not-exist.txt')"
             ).fetchall()
 
+    def test_git_uri_skips_file_guard(self, all_macros):
+        """git:// URIs bypass the glob() existence check (duck_tails handles them)."""
+        rows = all_macros.execute(
+            "SELECT * FROM read_source(git_uri('.', 'sql/source.sql', 'HEAD'), '1-3')"
+        ).fetchall()
+        assert len(rows) == 3
+
     def test_empty_file_returns_zero_rows(self, source_macros, tmp_path):
         empty_file = tmp_path / "empty.txt"
         empty_file.write_text("")
@@ -107,6 +114,12 @@ class TestReadContext:
         center_rows = [r for r in rows if r[1]]
         assert len(center_rows) == 1
         assert center_rows[0][0] == 10
+
+    def test_nonexistent_file_raises_error(self, source_macros):
+        with pytest.raises(duckdb.InvalidInputException, match="File not found"):
+            source_macros.execute(
+                "SELECT * FROM read_context('this-file-does-not-exist.txt', 10)"
+            ).fetchall()
 
 
 class TestProjectOverviewMacro:
