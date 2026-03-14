@@ -359,29 +359,18 @@ def _create_mcp_server(profile, conv_jsonl_path=None):
     load_sql(con, "docs.sql")
     load_sql(con, "repo.sql")
     load_sql(con, "structural.sql")
-    # Conversation data
+    # Conversation data: set conversations_root so the bootstrap in
+    # conversations.sql can call glob() without a NULL argument.
+    # conversations.sql uses CREATE TABLE IF NOT EXISTS, so the pre-created
+    # table (if any) is preserved.
     if conv_jsonl_path:
-        con.execute(f"""
-            CREATE TABLE raw_conversations AS
-            SELECT *, filename AS _source_file
-            FROM read_json_auto(
-                '{conv_jsonl_path}', union_by_name=true,
-                maximum_object_size=33554432, filename=true
-            )
-        """)
+        # conv_jsonl_path is .../projects/mcp-test-project/conversations.jsonl
+        # conversations_root must be .../projects (two levels up)
+        conv_root = str(conv_jsonl_path.parent.parent)
+        con.execute(f"SET VARIABLE conversations_root = '{conv_root}'")
     else:
-        con.execute("""
-            CREATE TABLE raw_conversations AS
-            SELECT NULL::VARCHAR AS uuid, NULL::VARCHAR AS sessionId,
-                   NULL::VARCHAR AS type,
-                   NULL::STRUCT(role VARCHAR, content JSON, model VARCHAR, id VARCHAR, stop_reason VARCHAR, usage STRUCT(input_tokens BIGINT, output_tokens BIGINT, cache_creation_input_tokens BIGINT, cache_read_input_tokens BIGINT)) AS message,
-                   NULL::TIMESTAMP AS timestamp, NULL::VARCHAR AS requestId,
-                   NULL::VARCHAR AS slug, NULL::VARCHAR AS version,
-                   NULL::VARCHAR AS gitBranch, NULL::VARCHAR AS cwd,
-                   NULL::BOOLEAN AS isSidechain, NULL::BOOLEAN AS isMeta,
-                   NULL::VARCHAR AS parentUuid, NULL::VARCHAR AS _source_file
-            WHERE false
-        """)
+        # No data — point at a non-existent path so glob returns empty
+        con.execute("SET VARIABLE conversations_root = '/dev/null/no-conversations'")
     load_sql(con, "conversations.sql")
     # Help system (materialize before lockdown, same as init script)
     materialize_help(con)
@@ -585,20 +574,6 @@ def conversation_macros(con, tmp_path):
         for record in CONVERSATION_RECORDS:
             f.write(json.dumps(record) + "\n")
 
-    # Bootstrap: define load_conversations() inline so we can create
-    # raw_conversations BEFORE loading conversations.sql. DuckDB validates
-    # table references at macro definition time, so raw_conversations must
-    # exist when conversations.sql's other macros are parsed.
-    # conversations.sql redefines load_conversations() identically.
-    con.execute(f"""
-        CREATE OR REPLACE MACRO load_conversations(path) AS TABLE
-            SELECT *, filename AS _source_file
-            FROM read_json_auto(
-                path, union_by_name=true,
-                maximum_object_size=33554432, filename=true
-            );
-        CREATE TABLE raw_conversations AS
-        SELECT * FROM load_conversations('{jsonl_path}')
-    """)
+    con.execute(f"SET VARIABLE conversations_root = '{tmp_path / '.claude' / 'projects'}'")
     load_sql(con, "conversations.sql")
     return con

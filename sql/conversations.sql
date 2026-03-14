@@ -1,13 +1,35 @@
 -- conversations.sql: DuckDB macros for analyzing Claude Code conversation logs
 --
--- Prerequisites: A `raw_conversations` table must exist before loading this file.
--- DuckDB validates table references at macro definition time, so you must:
---   1. Define load_conversations() (or copy the definition below)
---   2. CREATE TABLE raw_conversations AS SELECT * FROM load_conversations(...)
---   3. Then load this file (which redefines load_conversations and adds all other macros)
--- Macro-to-macro references ARE deferred (resolved at call time).
--- All objects are CREATE OR REPLACE for idempotency.
+-- Self-contained: creates raw_conversations if it does not already exist.
+-- Reads JSONL from getvariable('conversations_root') || '/*/*.jsonl'.
+-- All objects are CREATE OR REPLACE / CREATE TABLE IF NOT EXISTS for idempotency.
 -- See docs/vision/CONVERSATION_SCHEMA_DESIGN.md for design details.
+
+-- Bootstrap: Create raw_conversations table.
+-- Uses query() for conditional dispatch: loads JSONL if files exist,
+-- otherwise creates an empty table with the expected schema.
+SET VARIABLE _has_conversations = (SELECT count(*) > 0 FROM glob(
+    getvariable('conversations_root') || '/*/*.jsonl'
+));
+CREATE TABLE IF NOT EXISTS raw_conversations AS
+SELECT * REPLACE (CAST(timestamp AS TIMESTAMP) AS timestamp) FROM query(
+    CASE WHEN getvariable('_has_conversations')
+    THEN 'SELECT *, filename AS _source_file FROM read_json_auto(
+        ''' || getvariable('conversations_root') || '/*/*.jsonl'',
+        union_by_name=true, maximum_object_size=33554432, filename=true,
+        ignore_errors=true
+    )'
+    ELSE 'SELECT NULL::VARCHAR AS uuid, NULL::VARCHAR AS sessionId,
+          NULL::VARCHAR AS type,
+          NULL::STRUCT(role VARCHAR, content JSON, model VARCHAR, id VARCHAR, stop_reason VARCHAR, usage STRUCT(input_tokens BIGINT, output_tokens BIGINT, cache_creation_input_tokens BIGINT, cache_read_input_tokens BIGINT)) AS message,
+          NULL::TIMESTAMP AS timestamp, NULL::VARCHAR AS requestId,
+          NULL::VARCHAR AS slug, NULL::VARCHAR AS version,
+          NULL::VARCHAR AS gitBranch, NULL::VARCHAR AS cwd,
+          NULL::BOOLEAN AS isSidechain, NULL::BOOLEAN AS isMeta,
+          NULL::VARCHAR AS parentUuid, NULL::VARCHAR AS _source_file
+          WHERE false'
+    END
+);
 
 -- 1. LOADING MACRO
 CREATE OR REPLACE MACRO load_conversations(path) AS TABLE

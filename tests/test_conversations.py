@@ -1,9 +1,11 @@
 """Tests for conversation analysis macros (conversations.sql)."""
 
+import json
+
 import duckdb
 import pytest
 
-from conftest import load_sql
+from conftest import load_sql, CONVERSATION_RECORDS
 
 
 # The empty-table fallback schema from init-fledgling.sql. If macros evolve to
@@ -270,6 +272,33 @@ class TestSessionSummary:
         assert row[5] == 1  # bash_replaceable_calls (git status → duck_tails)
 
 
+class TestSelfContainedBootstrap:
+    """conversations.sql bootstraps raw_conversations without external setup."""
+
+    def test_loads_without_preexisting_table(self, con, tmp_path):
+        """conversations.sql creates raw_conversations from JSONL."""
+        project_dir = tmp_path / ".claude" / "projects" / "test-project"
+        project_dir.mkdir(parents=True)
+        jsonl_path = project_dir / "conversations.jsonl"
+        with open(jsonl_path, "w") as f:
+            for record in CONVERSATION_RECORDS:
+                f.write(json.dumps(record) + "\n")
+
+        con.execute(f"SET VARIABLE conversations_root = '{tmp_path / '.claude' / 'projects'}'")
+        load_sql(con, "conversations.sql")
+
+        rows = con.execute("SELECT count(*) FROM raw_conversations").fetchone()
+        assert rows[0] == 7
+
+    def test_loads_with_no_jsonl_files(self, con, tmp_path):
+        """conversations.sql creates empty raw_conversations when no JSONL exists."""
+        con.execute(f"SET VARIABLE conversations_root = '{tmp_path}'")
+        load_sql(con, "conversations.sql")
+
+        rows = con.execute("SELECT count(*) FROM raw_conversations").fetchone()
+        assert rows[0] == 0
+
+
 class TestModelUsage:
     def test_groups_by_model(self, conversation_macros):
         rows = conversation_macros.execute(
@@ -296,15 +325,19 @@ class TestFallbackSchema:
             f"Update FALLBACK_SCHEMA_COLUMNS and init-fledgling.sql ELSE branch."
         )
 
-    def test_macros_work_with_empty_table(self):
+    def test_macros_work_with_empty_table(self, tmp_path):
         """All conversation macros return empty results on an empty table.
 
-        Uses the same STRUCT type for message as init-fledgling.sql's empty
+        Uses the same STRUCT type for message as conversations.sql's empty
         fallback. DuckDB resolves types through the macro chain at definition
         time, so message must be a STRUCT (not bare JSON) for arithmetic in
         token_usage() to bind.
+
+        Pre-creates raw_conversations so the schema is exactly as needed;
+        CREATE TABLE IF NOT EXISTS in conversations.sql skips re-creation.
         """
         con = duckdb.connect(":memory:")
+        con.execute(f"SET VARIABLE conversations_root = '{tmp_path}'")
         con.execute("""
             CREATE TABLE raw_conversations AS
             SELECT NULL::VARCHAR AS uuid, NULL::VARCHAR AS sessionId,
