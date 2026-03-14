@@ -28,14 +28,19 @@ SET VARIABLE _default_modules = ['source', 'code', 'docs', 'repo',
 SET VARIABLE _default_profile = 'analyst';
 
 -- Read user config (set via -cmd before stdin)
-SET VARIABLE _user_config = getvariable('fledgling_config');
-
+-- When fledgling_config is not set, getvariable returns NULL.
+-- Struct field access on NULL fails (DuckDB treats it as a table ref),
+-- so we guard with CASE.
 SET VARIABLE _selected_modules = COALESCE(
-    _user_config.modules,
+    CASE WHEN getvariable('fledgling_config') IS NOT NULL
+         THEN getvariable('fledgling_config').modules
+         ELSE NULL END,
     getvariable('_default_modules')
 );
 SET VARIABLE _profile = COALESCE(
-    _user_config.profile,
+    CASE WHEN getvariable('fledgling_config') IS NOT NULL
+         THEN getvariable('fledgling_config').profile
+         ELSE NULL END,
     getvariable('_default_profile')
 );
 
@@ -120,18 +125,30 @@ SELECT * FROM read_text(
      FOR m IN getvariable('_all_modules')]
 );
 
--- Fetch tool publication SQL files
+-- Fetch tool publication SQL files (skip if none selected)
+-- Build URL list as a string for query() dispatch — avoids read_text(NULL)
+SET VARIABLE _tool_urls = [format('{}/sql/tools/{}.sql', getvariable('_base'), t)
+                           FOR t IN getvariable('_tool_files')];
 CREATE TABLE _tools AS
-SELECT * FROM read_text(
-    [format('{}/sql/tools/{}.sql', getvariable('_base'), t)
-     FOR t IN getvariable('_tool_files')]
+SELECT * FROM query(
+    CASE WHEN len(getvariable('_tool_urls')) > 0
+    THEN 'SELECT * FROM read_text(getvariable(''_tool_urls''))'
+    ELSE 'SELECT NULL::VARCHAR AS filename, NULL::VARCHAR AS content, NULL::BIGINT AS size WHERE false'
+    END
 );
 
--- Fetch resources (SKILL.md, etc.)
-CREATE TABLE _resources AS
-SELECT * FROM read_text(
+-- Fetch resources (SKILL.md, etc.) — skip if none needed
+SET VARIABLE _resource_urls = COALESCE(
     [format('{}/{}', getvariable('_base'), r)
-     FOR r IN getvariable('_resource_files')]
+     FOR r IN getvariable('_resource_files')],
+    []::VARCHAR[]
+);
+CREATE TABLE _resources AS
+SELECT * FROM query(
+    CASE WHEN len(getvariable('_resource_urls')) > 0
+    THEN 'SELECT * FROM read_text(getvariable(''_resource_urls''))'
+    ELSE 'SELECT NULL::VARCHAR AS filename, NULL::VARCHAR AS content, NULL::BIGINT AS size WHERE false'
+    END
 );
 
 -- ── 6. Assembly macros ───────────────────────────────────────────────
@@ -156,7 +173,7 @@ CREATE OR REPLACE MACRO _fledgling_header(root, profile, extensions, modules) AS
     || 'SET VARIABLE conversations_root = COALESCE(getvariable(''conversations_root''), NULLIF(getenv(''CONVERSATIONS_ROOT''), ''''), getenv(''HOME'') || ''/.claude/projects'');' || E'\n'
     || 'SET VARIABLE fledgling_version = ''' || getvariable('_version') || ''';' || E'\n'
     || 'SET VARIABLE fledgling_profile = ''' || profile || ''';' || E'\n'
-    || 'SET VARIABLE fledgling_modules = ' || modules::VARCHAR || ';' || E'\n'
+    || 'SET VARIABLE fledgling_modules = [' || array_to_string([format('''{}''', m) FOR m IN modules], ', ') || '];' || E'\n'
     || 'SET VARIABLE _help_path = ''.fledgling-help.md'';' || E'\n';
 
 -- Footer: profile settings, lockdown, server start
@@ -181,25 +198,26 @@ COPY (
         || E'\n'
         || (SELECT string_agg(content, E'\n;\n' ORDER BY load_order DESC) FROM _ordered_macros)
         || E'\n;\n'
-        || (SELECT string_agg(content, E'\n;\n') FROM _tools)
+        || COALESCE((SELECT string_agg(content, E'\n;\n') FROM _tools), '')
         || E'\n;\n'
         || _fledgling_footer(getenv('PWD'), getvariable('_profile'))
 ) TO '.fledgling-init.sql' (FORMAT csv, QUOTE '', HEADER false);
 
 -- Write .fledgling-help.md (SKILL.md content for the help module)
+-- Only write if we fetched the resource
 COPY (
     SELECT content FROM _resources WHERE filename LIKE '%SKILL.md'
+    UNION ALL SELECT '' WHERE NOT EXISTS (SELECT 1 FROM _resources WHERE filename LIKE '%SKILL.md')
 ) TO '.fledgling-help.md' (FORMAT csv, QUOTE '', HEADER false);
 
 -- Merge .mcp.json
+-- glob() is a table function — use a subquery to get existing file list
+SET VARIABLE _has_mcp_json = (SELECT count(*) > 0 FROM glob('.mcp.json'));
 COPY (
     SELECT json_pretty(json_merge_patch(
-        COALESCE(
-            (SELECT content FROM read_text(
-                [f FOR f IN glob('.mcp.json') IF f IS NOT NULL]
-            )),
-            '{}'
-        ),
+        CASE WHEN getvariable('_has_mcp_json')
+             THEN (SELECT content FROM read_text('.mcp.json'))
+             ELSE '{}' END,
         '{"mcpServers": {"fledgling": {
             "command": "duckdb",
             "args": ["-init", ".fledgling-init.sql"]
