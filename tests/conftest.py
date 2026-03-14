@@ -94,24 +94,15 @@ def repo_macros(con):
 
 
 def materialize_help(con):
-    """Create the _help_sections table from SKILL.md.
-
-    Uses absolute path so tests work regardless of CWD.
-    """
-    con.execute(f"""
-        CREATE TABLE _help_sections AS
-        SELECT section_id, section_path, level, title, content,
-               start_line, end_line
-        FROM read_markdown_sections('{SKILL_PATH}', content_mode := 'full',
-            include_content := true, include_filepath := false)
-    """)
+    """Set up help path for help.sql bootstrap."""
+    con.execute(f"SET VARIABLE _help_path = '{SKILL_PATH}'")
 
 
 @pytest.fixture
 def help_macros(con):
     """Connection with markdown extension + help macro + materialized SKILL.md."""
     con.execute("LOAD markdown")
-    materialize_help(con)
+    con.execute(f"SET VARIABLE _help_path = '{SKILL_PATH}'")
     load_sql(con, "help.sql")
     return con
 

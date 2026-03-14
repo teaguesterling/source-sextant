@@ -1,8 +1,19 @@
 -- Fledgling: Help System Macro
 --
 -- Provides agent-accessible skill documentation from a materialized
--- table. The _help_sections table must be created before this file
--- is loaded (see init-fledgling.sql).
+-- table. Bootstraps _help_sections from the skill guide on load.
+
+-- Bootstrap: Materialize _help_sections from the skill guide.
+-- Path priority: _help_path variable > SKILL.md in current directory.
+-- The installer sets _help_path to '.fledgling-help.md'.
+-- init-fledgling-base.sql sets it to 'SKILL.md' (or leaves default).
+CREATE TABLE IF NOT EXISTS _help_sections AS
+SELECT section_id, section_path, level, title, content, start_line, end_line
+FROM read_markdown_sections(
+    COALESCE(getvariable('_help_path'), 'SKILL.md'),
+    content_mode := 'full',
+    include_content := true, include_filepath := false
+);
 
 -- help: Browse the Fledgling skill guide.
 -- With no arguments, returns an outline (section IDs and titles).

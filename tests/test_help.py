@@ -1,6 +1,7 @@
 """Tests for help system macro (skill guide access)."""
 
 import pytest
+from conftest import load_sql, SKILL_PATH
 
 
 class TestHelpOutline:
@@ -100,3 +101,25 @@ class TestHelpSection:
             "SELECT * FROM help('structural-analysis')"
         ).fetchall()
         assert len(rows) >= 1
+
+
+class TestSelfContainedBootstrap:
+    """help.sql bootstraps _help_sections without external setup."""
+
+    def test_loads_from_skill_md(self, con):
+        """help.sql creates _help_sections from SKILL.md."""
+        con.execute("LOAD markdown")
+        con.execute(f"SET VARIABLE _help_path = '{SKILL_PATH}'")
+        load_sql(con, "help.sql")
+
+        rows = con.execute("SELECT count(*) FROM _help_sections").fetchone()
+        assert rows[0] > 5
+
+    def test_help_macro_works_after_bootstrap(self, con):
+        """help() macro works after self-contained load."""
+        con.execute("LOAD markdown")
+        con.execute(f"SET VARIABLE _help_path = '{SKILL_PATH}'")
+        load_sql(con, "help.sql")
+
+        rows = con.execute("SELECT * FROM help()").fetchall()
+        assert len(rows) > 5
