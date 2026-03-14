@@ -40,6 +40,9 @@ SET VARIABLE conversations_root = COALESCE(
 -- Path resolution macro (resolve relative paths against session_root)
 .read sql/sandbox.sql
 
+-- Diagnostics module (no extension dependencies)
+.read sql/dr_fledgling.sql
+
 -- Load macro definitions
 .read sql/source.sql
 .read sql/code.sql
