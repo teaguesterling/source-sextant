@@ -53,7 +53,7 @@ Code analysis + git history in one call. No shell pipelines, no string parsing.
 
 ## What's Included
 
-### MCP Tools (20)
+### MCP Tools (24)
 
 | Tool | What it does |
 |------|-------------|
@@ -77,8 +77,12 @@ Code analysis + git history in one call. No shell pipelines, no string parsing.
 | `ChatSearch` | Full-text search across conversation messages |
 | `ChatToolUsage` | Tool usage patterns |
 | `ChatDetail` | Deep view of a single session |
+| `SearchContent` | BM25 full-text search across all indexed content |
+| `SearchDocs` | BM25 search over markdown sections |
+| `SearchCode` | BM25 search over code (definitions, comments, strings) |
+| `FtsStats` | Index diagnostics: row and file counts per extractor/kind |
 
-Plus 30+ composable SQL macros via the query tool: `explore_query`, `investigate_query`, `review_query`, `search_query`, `pss_render`, `find_class_members`, `complexity_hotspots`, `function_callers`, `module_dependencies`, `structural_diff`, `doc_outline`, and more.
+Plus 30+ composable SQL macros via the query tool: `explore_query`, `investigate_query`, `review_query`, `search_query`, `pss_render`, `find_class_members`, `complexity_hotspots`, `function_callers`, `module_dependencies`, `structural_diff`, `doc_outline`, `search_content`, `search_docs`, `search_code`, `find_code_ranked`, and more.
 
 ### Python API
 
@@ -169,7 +173,7 @@ Fledgling is the SQL macro foundation. Two companion packages build on it:
 │  │                                   │  │
 │  │  ┌─────────────────────────────┐  │  │
 │  │  │  fledgling (SQL + Python)   │  │  │  pip install fledgling-mcp
-│  │  │  20 MCP tools, 30+ macros   │  │  │  or: curl | duckdb
+│  │  │  24 MCP tools, 30+ macros   │  │  │  or: curl | duckdb
 │  │  │  fledgling.connect()        │  │  │
 │  │  │  read_lines, sitting_duck,  │  │  │
 │  │  │  duck_tails, markdown       │  │  │
