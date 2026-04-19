@@ -112,8 +112,7 @@ CREATE OR REPLACE MACRO investigate_query(
             SELECT LIST({
                 file_path: fc.file_path,
                 call_line: fc.call_line,
-                caller_name: fc.caller_name,
-                caller_kind: fc.caller_kind
+                caller_name: fc.caller_name
             }) AS items
             FROM function_callers(file_pattern, name) AS fc
         ),
