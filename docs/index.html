@@ -244,6 +244,7 @@
                 <label class="chip"><input type="checkbox" value="repo" checked onchange="updateCommand()"><span>repo</span><span class="chip-desc">git state</span></label>
                 <label class="chip"><input type="checkbox" value="structural" checked onchange="updateCommand()"><span>structural</span><span class="chip-desc">code + git</span></label>
                 <label class="chip"><input type="checkbox" value="conversations" checked onchange="updateCommand()"><span>conversations</span><span class="chip-desc">chat logs</span></label>
+                <label class="chip"><input type="checkbox" value="fts" checked onchange="updateCommand()"><span>fts</span><span class="chip-desc">BM25 search</span></label>
                 <label class="chip"><input type="checkbox" value="help" checked onchange="updateCommand()"><span>help</span><span class="chip-desc">skill guide</span></label>
             </div>
         </div>
@@ -298,6 +299,10 @@
         <div class="card"><strong>Help</strong><span>Built-in skill guide for the agent</span></div>
         <div class="card"><strong>FindInAST</strong><span>Search code by semantic category (calls, imports, loops, etc.)</span></div>
         <div class="card"><strong>GitDiffFile</strong><span>Line-level unified diff between revisions</span></div>
+        <div class="card"><strong>SearchDocs</strong><span>BM25 full-text search over markdown sections</span></div>
+        <div class="card"><strong>SearchCode</strong><span>BM25 search over code definitions, comments, strings</span></div>
+        <div class="card"><strong>SearchContent</strong><span>BM25 search across all indexed content</span></div>
+        <div class="card"><strong>FindCodeRanked</strong><span>CSS selector + BM25 relevance ranking</span></div>
     </div>
 
     <h2>SQL Macros</h2>
@@ -362,6 +367,15 @@
         <tr><td><code>model_usage()</code></td><td>Token consumption by model</td></tr>
         <tr><td><code>search_messages(term)</code></td><td>Full-text search across content</td></tr>
         <tr><td><code>search_tool_inputs(term)</code></td><td>Search within tool parameters</td></tr>
+    </table>
+
+    <h3 class="ref-heading">Full-Text Search</h3>
+    <table class="ref">
+        <tr><td><code>search_content(query, kind, extractor)</code></td><td>BM25 search across all indexed content</td></tr>
+        <tr><td><code>search_docs(query)</code></td><td>BM25 search over markdown sections</td></tr>
+        <tr><td><code>search_code(query, kind)</code></td><td>BM25 search over code (definitions, comments, strings)</td></tr>
+        <tr><td><code>find_code_ranked(source, selector, query)</code></td><td>CSS selector results ranked by BM25 relevance</td></tr>
+        <tr><td><code>fts_stats()</code></td><td>FTS index statistics</td></tr>
     </table>
 
     <h2>SQL macros, not bash</h2>
@@ -434,7 +448,7 @@ con.<span class="fn">code_structure</span>(<span class="str">'src/**/*.py'</span
     </footer>
 </div>
 <script>
-const ALL_MODULES = ['source','code','docs','repo','structural','conversations','help'];
+const ALL_MODULES = ['source','code','docs','repo','structural','conversations','fts','help'];
 const BASE = 'curl -sL https://raw.githubusercontent.com/teaguesterling/fledgling/main/sql/install-fledgling.sql';
 
 function getSelected() {

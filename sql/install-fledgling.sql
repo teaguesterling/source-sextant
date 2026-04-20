@@ -63,6 +63,7 @@ CREATE TABLE _module_registry AS FROM (VALUES
     ('repo',          'feature', ['duck_tails'],                  ['sandbox'],                                       'git',            NULL),
     ('structural',    'feature', ['sitting_duck','duck_tails'],   ['sandbox','code','repo'],                         NULL,             NULL),
     ('workflows',     'feature', [],                              ['sandbox','source','code','docs','repo','structural'], 'workflows',      NULL),
+    ('fts',           'feature', ['sitting_duck','markdown'],     ['sandbox','code','docs'],                        'fts',            NULL),
     ('conversations', 'feature', [],                              [],                                                'conversations',  NULL),
     ('help',          'feature', ['markdown'],                    [],                                                'help',           'SKILL.md')
 ) AS t(module, kind, extension_deps, module_deps, tool_file, resource);
