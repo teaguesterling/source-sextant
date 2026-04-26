@@ -51,6 +51,12 @@
 
 CREATE SCHEMA IF NOT EXISTS fts;
 
+CREATE TABLE IF NOT EXISTS fts.collections (
+    name       TEXT PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT current_timestamp,
+    rebuilt_at TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS fts.content (
     id         BIGINT PRIMARY KEY,
     file_path  VARCHAR,
