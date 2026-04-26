@@ -525,6 +525,47 @@ class Connection:
         self._con.execute("SET VARIABLE fts_code_glob = ?", [code_glob])
         _load_sql_file(self._con, sql_dir / "fts_rebuild.sql")
 
+    def create_fts_collection(
+        self,
+        name: str,
+        source_query: str,
+    ) -> None:
+        """Create (or replace) a named FTS collection in the ``fts`` schema.
+
+        Drops and recreates the ``fts.<name>`` table, populates it from
+        ``source_query``, builds a BM25 index via
+        ``PRAGMA create_fts_index``, and registers the collection in
+        ``fts.collections``.
+
+        The source query must return exactly three columns in order:
+        ``id TEXT``, ``text TEXT``, ``metadata MAP(TEXT, TEXT)``.
+
+        Args:
+            name: Collection name.  Must match ``[a-z_][a-z0-9_]*``.
+            source_query: SQL query whose result populates the collection.
+
+        Raises:
+            ValueError: if ``name`` contains invalid characters.
+        """
+        if not re.match(r'^[a-z_][a-z0-9_]*$', name):
+            raise ValueError(f"Invalid collection name: {name!r}")
+        self._con.execute(f"DROP TABLE IF EXISTS fts.{name}")
+        self._con.execute(
+            f"CREATE TABLE fts.{name} (id TEXT, text TEXT, metadata MAP(TEXT, TEXT))"
+        )
+        self._con.execute(
+            f"INSERT INTO fts.{name} SELECT * FROM ({source_query})"
+        )
+        self._con.execute(
+            f"PRAGMA create_fts_index('fts.{name}', 'id', 'text', overwrite = 1)"
+        )
+        self._con.execute(
+            "INSERT INTO fts.collections (name, created_at, rebuilt_at) "
+            "VALUES (?, current_timestamp, current_timestamp) "
+            "ON CONFLICT (name) DO UPDATE SET rebuilt_at = excluded.rebuilt_at",
+            [name],
+        )
+
     def __getattr__(self, name: str):
         # First check macros
         if not name.startswith("_") and hasattr(self._tools, '_macros') and name in self._tools._macros:
