@@ -524,6 +524,11 @@ class Connection:
         self._con.execute("SET VARIABLE fts_docs_glob = ?", [docs_glob])
         self._con.execute("SET VARIABLE fts_code_glob = ?", [code_glob])
         _load_sql_file(self._con, sql_dir / "fts_rebuild.sql")
+        self._con.execute(
+            "INSERT INTO fts.collections (name, created_at, rebuilt_at) "
+            "VALUES ('content', current_timestamp, current_timestamp) "
+            "ON CONFLICT (name) DO UPDATE SET rebuilt_at = excluded.rebuilt_at"
+        )
 
     def create_fts_collection(
         self,

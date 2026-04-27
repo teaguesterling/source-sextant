@@ -139,3 +139,17 @@ class TestSearchCollection:
     def test_search_nonexistent_collection_errors(self, fledgling_con):
         with pytest.raises(Exception):
             fledgling_con.search_collection("nonexistent", "query")
+
+
+class TestContentCollectionCatalog:
+    def test_rebuild_registers_content_in_catalog(self, fledgling_con):
+        fledgling_con.rebuild_fts(
+            docs_glob=PROJECT_ROOT + "/**/*.md",
+            code_glob=PROJECT_ROOT + "/**/*.py",
+        )
+        row = fledgling_con.execute(
+            "SELECT name, rebuilt_at FROM fts.collections WHERE name = 'content'"
+        ).fetchone()
+        assert row is not None
+        assert row[0] == "content"
+        assert row[1] is not None
