@@ -566,6 +566,43 @@ class Connection:
             [name],
         )
 
+    def search_collection(
+        self,
+        name: str,
+        query: str,
+        limit: int = 20,
+    ) -> list:
+        """Search a named FTS collection using BM25 ranking.
+
+        Returns rows ordered by relevance score (highest first), up to
+        ``limit`` results.  Each row is a tuple of
+        ``(id, text, metadata, score)``.
+
+        Args:
+            name: Collection name.  Must match ``[a-z_][a-z0-9_]*``.
+            query: Search query string passed to BM25 matching.
+            limit: Maximum number of results to return (default 20).
+
+        Returns:
+            List of ``(id, text, metadata, score)`` tuples, empty list if
+            no matches.
+
+        Raises:
+            ValueError: if ``name`` contains invalid characters.
+            Exception: if the collection does not exist.
+        """
+        if not re.match(r'^[a-z_][a-z0-9_]*$', name):
+            raise ValueError(f"Invalid collection name: {name!r}")
+        sql = (
+            f"SELECT c.id, c.text, c.metadata, "
+            f"  fts_fts_{name}.match_bm25(c.id, ?) AS score "
+            f"FROM fts.{name} c "
+            f"WHERE fts_fts_{name}.match_bm25(c.id, ?) IS NOT NULL "
+            f"ORDER BY score DESC "
+            f"LIMIT ?"
+        )
+        return self._con.execute(sql, [query, query, limit]).fetchall()
+
     def __getattr__(self, name: str):
         # First check macros
         if not name.startswith("_") and hasattr(self._tools, '_macros') and name in self._tools._macros:

@@ -93,3 +93,49 @@ class TestCreateCollection:
             "SELECT count(*) FROM fts.collections"
         ).fetchone()[0]
         assert count >= 2
+
+
+class TestSearchCollection:
+    def test_search_returns_results(self, fledgling_con):
+        fledgling_con.create_fts_collection("search_test", """
+            SELECT '1' AS id, 'the quick brown fox' AS text, map{} AS metadata
+            UNION ALL
+            SELECT '2', 'lazy dog sleeping', map{}
+            UNION ALL
+            SELECT '3', 'quick fox jumping over', map{}
+        """)
+        results = fledgling_con.search_collection("search_test", "quick fox")
+        assert len(results) > 0
+
+    def test_search_returns_scored_rows(self, fledgling_con):
+        fledgling_con.create_fts_collection("score_test", """
+            SELECT '1' AS id, 'authentication login password' AS text, map{} AS metadata
+            UNION ALL
+            SELECT '2', 'database connection pooling', map{}
+        """)
+        results = fledgling_con.search_collection("score_test", "authentication")
+        assert len(results) >= 1
+        row = results[0]
+        assert row[0] == "1"  # id
+        assert row[3] is not None  # score
+
+    def test_search_respects_limit(self, fledgling_con):
+        rows_sql = " UNION ALL ".join(
+            f"SELECT '{i}' AS id, 'common term repeated' AS text, map{{}} AS metadata"
+            for i in range(20)
+        )
+        fledgling_con.create_fts_collection("limit_test", rows_sql)
+        results = fledgling_con.search_collection("limit_test", "common term", limit=5)
+        assert len(results) <= 5
+
+    def test_search_empty_collection(self, fledgling_con):
+        fledgling_con.create_fts_collection("empty_test", """
+            SELECT '1' AS id, 'some text' AS text, map{} AS metadata
+            WHERE false
+        """)
+        results = fledgling_con.search_collection("empty_test", "anything")
+        assert results == []
+
+    def test_search_nonexistent_collection_errors(self, fledgling_con):
+        with pytest.raises(Exception):
+            fledgling_con.search_collection("nonexistent", "query")
